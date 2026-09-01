@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.project.mapper.CostProjectMapper">
+
+    <resultMap id="CostProjectResult" type="com.ruoyi.cost.project.domain.CostProject">
+        <id property="id" column="id"/>
+        <result property="projectCode" column="project_code"/>
+        <result property="projectName" column="project_name"/>
+        <result property="projectType" column="project_type"/>
+        <result property="professionalType" column="professional_type"/>
+        <result property="projectStage" column="project_stage"/>
+        <result property="constructionUnit" column="construction_unit"/>
+        <result property="contractorUnit" column="contractor_unit"/>
+        <result property="consultingUnit" column="consulting_unit"/>
+        <result property="province" column="province"/>
+        <result property="city" column="city"/>
+        <result property="district" column="district"/>
+        <result property="buildingArea" column="building_area"/>
+        <result property="projectManagerId" column="project_manager_id"/>
+        <result property="projectManagerName" column="project_manager_name"/>
+        <result property="ownerDeptId" column="owner_dept_id"/>
+        <result property="submittedAmount" column="submitted_amount"/>
+        <result property="approvedAmount" column="approved_amount"/>
+        <result property="increaseAmount" column="increase_amount"/>
+        <result property="reductionAmount" column="reduction_amount"/>
+        <result property="reductionRate" column="reduction_rate"/>
+        <result property="startDate" column="start_date"/>
+        <result property="completionDate" column="completion_date"/>
+        <result property="projectStatus" column="project_status"/>
+        <result property="description" column="description"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectCostProjectVo">
+        select p.id, p.project_code, p.project_name, p.project_type, p.professional_type,
+               p.project_stage, p.construction_unit, p.contractor_unit, p.consulting_unit,
+               p.province, p.city, p.district, p.building_area, p.project_manager_id,
+               p.project_manager_name, p.owner_dept_id, p.submitted_amount, p.approved_amount,
+               p.increase_amount, p.reduction_amount, p.reduction_rate, p.start_date,
+               p.completion_date, p.project_status, p.description, p.create_by, p.create_time,
+               p.update_by, p.update_time, p.remark, p.del_flag
+        from cost_project p
+    </sql>
+
+    <sql id="projectWhere">
+        where p.del_flag = '0'
+        <if test="id != null">and p.id = #{id}</if>
+        <if test="projectCode != null and projectCode != ''">
+            and p.project_code like concat('%', #{projectCode}, '%')
+        </if>
+        <if test="projectName != null and projectName != ''">
+            and p.project_name like concat('%', #{projectName}, '%')
+        </if>
+        <if test="projectType != null and projectType != ''">and p.project_type = #{projectType}</if>
+        <if test="projectStage != null and projectStage != ''">and p.project_stage = #{projectStage}</if>
+        <if test="projectStatus != null and projectStatus != ''">and p.project_status = #{projectStatus}</if>
+        <if test="projectManagerId != null">and p.project_manager_id = #{projectManagerId}</if>
+        <if test="params.beginTime != null and params.beginTime != ''">
+            and date_format(p.create_time, '%Y%m%d') &gt;= date_format(#{params.beginTime}, '%Y%m%d')
+        </if>
+        <if test="params.endTime != null and params.endTime != ''">
+            and date_format(p.create_time, '%Y%m%d') &lt;= date_format(#{params.endTime}, '%Y%m%d')
+        </if>
+        ${params.dataScope}
+    </sql>
+
+    <select id="selectCostProjectList" parameterType="com.ruoyi.cost.project.domain.CostProject" resultMap="CostProjectResult">
+        <include refid="selectCostProjectVo"/>
+        <include refid="projectWhere"/>
+        order by p.create_time desc, p.id desc
+    </select>
+
+    <select id="selectCostProjectById" parameterType="com.ruoyi.cost.project.domain.CostProject" resultMap="CostProjectResult">
+        <include refid="selectCostProjectVo"/>
+        <include refid="projectWhere"/>
+        limit 1
+    </select>
+
+    <select id="selectByProjectCode" resultMap="CostProjectResult">
+        <include refid="selectCostProjectVo"/>
+        where p.project_code = #{projectCode}
+        limit 1
+    </select>
+
+    <insert id="insertCostProject" parameterType="com.ruoyi.cost.project.domain.CostProject" useGeneratedKeys="true" keyProperty="id">
+        insert into cost_project (
+            project_code, project_name, project_type, professional_type, project_stage,
+            construction_unit, contractor_unit, consulting_unit, province, city, district,
+            building_area, project_manager_id, project_manager_name, owner_dept_id,
+            submitted_amount, approved_amount, increase_amount, reduction_amount, reduction_rate,
+            start_date, completion_date, project_status, description, create_by, create_time,
+            remark, del_flag
+        ) values (
+            #{projectCode}, #{projectName}, #{projectType}, #{professionalType}, #{projectStage},
+            #{constructionUnit}, #{contractorUnit}, #{consultingUnit}, #{province}, #{city}, #{district},
+            #{buildingArea}, #{projectManagerId}, #{projectManagerName}, #{ownerDeptId},
+            #{submittedAmount}, #{approvedAmount}, #{increaseAmount}, #{reductionAmount}, #{reductionRate},
+            #{startDate}, #{completionDate}, #{projectStatus}, #{description}, #{createBy}, #{createTime},
+            #{remark}, '0'
+        )
+    </insert>
+
+    <update id="updateCostProject" parameterType="com.ruoyi.cost.project.domain.CostProject">
+        update cost_project
+        set project_code = #{projectCode},
+            project_name = #{projectName},
+            project_type = #{projectType},
+            professional_type = #{professionalType},
+            project_stage = #{projectStage},
+            construction_unit = #{constructionUnit},
+            contractor_unit = #{contractorUnit},
+            consulting_unit = #{consultingUnit},
+            province = #{province},
+            city = #{city},
+            district = #{district},
+            building_area = #{buildingArea},
+            project_manager_id = #{projectManagerId},
+            project_manager_name = #{projectManagerName},
+            owner_dept_id = #{ownerDeptId},
+            submitted_amount = #{submittedAmount},
+            approved_amount = #{approvedAmount},
+            increase_amount = #{increaseAmount},
+            reduction_amount = #{reductionAmount},
+            reduction_rate = #{reductionRate},
+            start_date = #{startDate},
+            completion_date = #{completionDate},
+            project_status = #{projectStatus},
+            description = #{description},
+            update_by = #{updateBy},
+            update_time = #{updateTime},
+            remark = #{remark}
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="updateProjectStatus" parameterType="com.ruoyi.cost.project.domain.CostProject">
+        update cost_project
+        set project_status = #{projectStatus}, update_by = #{updateBy}, update_time = #{updateTime}
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="deleteCostProjectByIds">
+        update cost_project
+        set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where del_flag = '0' and id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <select id="selectProjectStatistics" parameterType="com.ruoyi.cost.project.domain.CostProject"
+            resultType="com.ruoyi.cost.project.vo.CostProjectStatisticsVo">
+        select count(1) as projectCount,
+               coalesce(sum(p.submitted_amount), 0) as submittedAmount,
+               coalesce(sum(p.approved_amount), 0) as approvedAmount,
+               coalesce(sum(p.reduction_amount), 0) as reductionAmount
+        from cost_project p
+        <include refid="projectWhere"/>
+    </select>
+</mapper>
