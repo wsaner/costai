@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.boq.mapper.CostBoqItemMapper">
+    <resultMap id="ItemResult" type="com.ruoyi.cost.boq.domain.CostBoqItem">
+        <id property="id" column="id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="batchId" column="batch_id"/>
+        <result property="sequenceNo" column="sequence_no"/>
+        <result property="itemCode" column="item_code"/>
+        <result property="itemName" column="item_name"/>
+        <result property="itemFeature" column="item_feature"/>
+        <result property="unit" column="unit"/>
+        <result property="quantity" column="quantity"/>
+        <result property="unitPrice" column="unit_price"/>
+        <result property="totalPrice" column="total_price"/>
+        <result property="calculatedTotalPrice" column="calculated_total_price"/>
+        <result property="laborPrice" column="labor_price"/>
+        <result property="materialPrice" column="material_price"/>
+        <result property="machinePrice" column="machine_price"/>
+        <result property="managementFee" column="management_fee"/>
+        <result property="profit" column="profit"/>
+        <result property="tax" column="tax"/>
+        <result property="professionalType" column="professional_type"/>
+        <result property="category" column="category"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="level" column="item_level"/>
+        <result property="sourceSheet" column="source_sheet"/>
+        <result property="sourceRow" column="source_row"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectItemList" resultMap="ItemResult">
+        select i.* from cost_boq_item i
+        where i.del_flag = '0' and i.batch_id = #{batchId}
+        <if test="itemCode != null and itemCode != ''">
+            and i.item_code like concat('%', #{itemCode}, '%')
+        </if>
+        <if test="itemName != null and itemName != ''">
+            and i.item_name like concat('%', #{itemName}, '%')
+        </if>
+        <if test="professionalType != null and professionalType != ''">
+            and i.professional_type = #{professionalType}
+        </if>
+        order by i.source_row asc, i.id asc
+    </select>
+
+    <insert id="batchInsert">
+        insert into cost_boq_item (
+            project_id, batch_id, sequence_no, item_code, item_name, item_feature, unit,
+            quantity, unit_price, total_price, calculated_total_price, labor_price,
+            material_price, machine_price, management_fee, profit, tax, professional_type,
+            category, parent_id, item_level, source_sheet, source_row, create_by, create_time, del_flag
+        ) values
+        <foreach collection="items" item="i" separator=",">
+            (#{i.projectId}, #{i.batchId}, #{i.sequenceNo}, #{i.itemCode}, #{i.itemName},
+             #{i.itemFeature}, #{i.unit}, #{i.quantity}, #{i.unitPrice}, #{i.totalPrice},
+             #{i.calculatedTotalPrice}, #{i.laborPrice}, #{i.materialPrice}, #{i.machinePrice},
+             #{i.managementFee}, #{i.profit}, #{i.tax}, #{i.professionalType}, #{i.category},
+             #{i.parentId}, #{i.level}, #{i.sourceSheet}, #{i.sourceRow}, #{i.createBy},
+             #{i.createTime}, '0')
+        </foreach>
+    </insert>
+
+    <update id="deleteByBatchId">
+        update cost_boq_item set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where batch_id = #{batchId} and del_flag = '0'
+    </update>
+</mapper>

@@ -37,6 +37,12 @@
           </el-descriptions>
         </el-card>
       </el-tab-pane>
+      <el-tab-pane label="项目文件" name="files">
+        <project-files v-if="project.id" :project-id="project.id" />
+      </el-tab-pane>
+      <el-tab-pane label="工程量清单" name="boq">
+        <project-boq-manager v-if="project.id" :project-id="project.id" :professional-type="project.professionalType" />
+      </el-tab-pane>
       <el-tab-pane v-for="tab in reservedTabs" :key="tab.name" :label="tab.label" :name="tab.name">
         <el-empty :description="`${tab.label}将在后续阶段接入`" />
       </el-tab-pane>
@@ -46,6 +52,8 @@
 
 <script setup name="CostProjectDetail">
 import { getProject } from '@/api/cost/project'
+import ProjectFiles from './components/ProjectFiles.vue'
+import ProjectBoqManager from './components/ProjectBoqManager.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,8 +65,6 @@ const loading = ref(false)
 const activeTab = ref('overview')
 const project = ref({})
 const reservedTabs = [
-  { name: 'files', label: '项目文件' },
-  { name: 'boq', label: '工程量清单' },
   { name: 'review', label: '审核结果' },
   { name: 'indicator', label: '造价指标' },
   { name: 'material', label: '材料价格' },

@@ -43,6 +43,27 @@ export default {
       }
     })
   },
+  projectFile(id, name) {
+    const url = baseURL + "/cost/project/files/" + id + "/download"
+    downloadLoadingInstance = ElLoading.service({ text: "正在下载项目文件，请稍候", background: "rgba(0, 0, 0, 0.7)" })
+    axios({
+      method: 'get',
+      url,
+      responseType: 'blob',
+      headers: { 'Authorization': 'Bearer ' + getToken() }
+    }).then((res) => {
+      if (blobValidate(res.data)) {
+        this.saveAs(new Blob([res.data]), name)
+      } else {
+        this.printErrMsg(res.data)
+      }
+      downloadLoadingInstance.close()
+    }).catch((error) => {
+      console.error(error)
+      ElMessage.error('下载项目文件失败')
+      downloadLoadingInstance.close()
+    })
+  },
   zip(url, name) {
     var url = baseURL + url
     downloadLoadingInstance = ElLoading.service({ text: "正在下载数据，请稍候", background: "rgba(0, 0, 0, 0.7)", })

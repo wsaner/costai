@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.file.mapper.CostProjectFileMapper">
+
+    <resultMap id="CostProjectFileResult" type="com.ruoyi.cost.file.domain.CostProjectFile">
+        <id property="id" column="id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="fileId" column="file_id"/>
+        <result property="originalName" column="original_name"/>
+        <result property="fileName" column="file_name"/>
+        <result property="fileExt" column="file_ext"/>
+        <result property="mimeType" column="mime_type"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="storagePath" column="storage_path"/>
+        <result property="fileCategory" column="file_category"/>
+        <result property="fileHash" column="file_hash"/>
+        <result property="aiParseStatus" column="ai_parse_status"/>
+        <result property="aiParseText" column="ai_parse_text"/>
+        <result property="aiParseError" column="ai_parse_error"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectProjectFileDetail">
+        select f.id, f.project_id, f.file_id, f.original_name, f.file_name, f.file_ext,
+               f.mime_type, f.file_size, f.storage_path, f.file_category, f.file_hash,
+               f.ai_parse_status, f.ai_parse_text, f.ai_parse_error, f.create_by,
+               f.create_time, f.update_by, f.update_time, f.remark, f.del_flag
+        from cost_project_file f
+    </sql>
+
+    <select id="selectByProjectId" resultMap="CostProjectFileResult">
+        select f.id, f.project_id, f.file_id, f.original_name, f.file_name, f.file_ext,
+               f.mime_type, f.file_size, f.file_category, f.file_hash, f.ai_parse_status,
+               f.ai_parse_error, f.create_by, f.create_time, f.update_by, f.update_time,
+               f.remark, f.del_flag
+        from cost_project_file f
+        where f.project_id = #{projectId} and f.del_flag = '0'
+        order by f.create_time desc, f.id desc
+    </select>
+
+    <select id="selectById" resultMap="CostProjectFileResult">
+        <include refid="selectProjectFileDetail"/>
+        where f.id = #{id} and f.del_flag = '0'
+        limit 1
+    </select>
+
+    <select id="countByProjectId" resultType="int">
+        select count(1) from cost_project_file
+        where project_id = #{projectId} and del_flag = '0'
+    </select>
+
+    <insert id="insertCostProjectFile" parameterType="com.ruoyi.cost.file.domain.CostProjectFile"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into cost_project_file (
+            project_id, file_id, original_name, file_name, file_ext, mime_type, file_size,
+            storage_path, file_category, file_hash, ai_parse_status, ai_parse_text,
+            ai_parse_error, create_by, create_time, remark, del_flag
+        ) values (
+            #{projectId}, #{fileId}, #{originalName}, #{fileName}, #{fileExt}, #{mimeType},
+            #{fileSize}, #{storagePath}, #{fileCategory}, #{fileHash}, #{aiParseStatus},
+            #{aiParseText}, #{aiParseError}, #{createBy}, #{createTime}, #{remark}, '0'
+        )
+    </insert>
+
+    <update id="updateFileCategory">
+        update cost_project_file
+        set file_category = #{fileCategory}, update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="deleteCostProjectFile">
+        update cost_project_file
+        set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+</mapper>

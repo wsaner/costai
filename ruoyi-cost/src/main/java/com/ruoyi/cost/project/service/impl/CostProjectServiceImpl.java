@@ -12,6 +12,7 @@ import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.cost.file.mapper.CostProjectFileMapper;
 import com.ruoyi.cost.project.domain.CostProject;
 import com.ruoyi.cost.project.mapper.CostProjectMapper;
 import com.ruoyi.cost.project.service.ICostProjectService;
@@ -30,13 +31,15 @@ public class CostProjectServiceImpl implements ICostProjectService
     private final CostProjectMapper projectMapper;
     private final ISysUserService userService;
     private final CostProjectAccessService accessService;
+    private final CostProjectFileMapper projectFileMapper;
 
     public CostProjectServiceImpl(CostProjectMapper projectMapper, ISysUserService userService,
-            CostProjectAccessService accessService)
+            CostProjectAccessService accessService, CostProjectFileMapper projectFileMapper)
     {
         this.projectMapper = projectMapper;
         this.userService = userService;
         this.accessService = accessService;
+        this.projectFileMapper = projectFileMapper;
     }
 
     @Override
@@ -97,6 +100,10 @@ public class CostProjectServiceImpl implements ICostProjectService
         for (Long id : ids)
         {
             selectCostProjectById(id);
+            if (projectFileMapper.countByProjectId(id) > 0)
+            {
+                throw new ServiceException("项目存在文件，请先删除项目文件");
+            }
         }
         return projectMapper.deleteCostProjectByIds(ids, operator);
     }

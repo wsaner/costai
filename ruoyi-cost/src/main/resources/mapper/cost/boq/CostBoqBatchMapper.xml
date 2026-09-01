@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.boq.mapper.CostBoqBatchMapper">
+    <resultMap id="BatchResult" type="com.ruoyi.cost.boq.domain.CostBoqBatch">
+        <id property="id" column="id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="batchName" column="batch_name"/>
+        <result property="businessType" column="business_type"/>
+        <result property="sourceFileId" column="source_file_id"/>
+        <result property="sourceFileName" column="source_file_name"/>
+        <result property="sheetName" column="sheet_name"/>
+        <result property="headerRow" column="header_row"/>
+        <result property="fieldMappingJson" column="field_mapping_json"/>
+        <result property="professionalType" column="professional_type"/>
+        <result property="totalCount" column="total_count"/>
+        <result property="successCount" column="success_count"/>
+        <result property="failCount" column="fail_count"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="importStatus" column="import_status"/>
+        <result property="errorSummary" column="error_summary"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <sql id="batchColumns">
+        b.id, b.project_id, b.batch_name, b.business_type, b.source_file_id,
+        f.original_name source_file_name, b.sheet_name, b.header_row, b.field_mapping_json,
+        b.professional_type, b.total_count, b.success_count, b.fail_count, b.total_amount,
+        b.import_status, b.error_summary, b.create_by, b.create_time, b.update_by,
+        b.update_time, b.remark, b.del_flag
+    </sql>
+
+    <select id="selectBatchList" resultMap="BatchResult">
+        select <include refid="batchColumns"/>
+        from cost_boq_batch b
+        left join cost_project_file f on f.id = b.source_file_id
+        where b.del_flag = '0' and b.project_id = #{projectId}
+        <if test="businessType != null and businessType != ''">
+            and b.business_type = #{businessType}
+        </if>
+        <if test="batchName != null and batchName != ''">
+            and b.batch_name like concat('%', #{batchName}, '%')
+        </if>
+        order by b.create_time desc, b.id desc
+    </select>
+
+    <select id="selectBatchById" resultMap="BatchResult">
+        select <include refid="batchColumns"/>
+        from cost_boq_batch b
+        left join cost_project_file f on f.id = b.source_file_id
+        where b.id = #{id} and b.del_flag = '0'
+        limit 1
+    </select>
+
+    <insert id="insertBatch" parameterType="com.ruoyi.cost.boq.domain.CostBoqBatch"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into cost_boq_batch (
+            project_id, batch_name, business_type, source_file_id, sheet_name, header_row,
+            field_mapping_json, professional_type, total_count, success_count, fail_count,
+            total_amount, import_status, error_summary, create_by, create_time, remark, del_flag
+        ) values (
+            #{projectId}, #{batchName}, #{businessType}, #{sourceFileId}, #{sheetName}, #{headerRow},
+            #{fieldMappingJson}, #{professionalType}, 0, 0, 0, 0, #{importStatus}, null,
+            #{createBy}, #{createTime}, #{remark}, '0'
+        )
+    </insert>
+
+    <update id="updateImportResult">
+        update cost_boq_batch
+        set total_count = #{totalCount}, success_count = #{successCount}, fail_count = #{failCount},
+            total_amount = #{totalAmount}, import_status = #{importStatus},
+            error_summary = #{errorSummary}, update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="deleteBatch">
+        update cost_boq_batch set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <select id="countBySourceFileId" resultType="int">
+        select count(1) from cost_boq_batch where source_file_id = #{sourceFileId} and del_flag = '0'
+    </select>
+</mapper>

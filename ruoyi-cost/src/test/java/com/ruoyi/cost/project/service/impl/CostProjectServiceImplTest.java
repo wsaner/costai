@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.cost.project.domain.CostProject;
+import com.ruoyi.cost.file.mapper.CostProjectFileMapper;
 import com.ruoyi.cost.project.mapper.CostProjectMapper;
 import com.ruoyi.cost.project.support.CostProjectStatus;
 import com.ruoyi.cost.project.vo.CostProjectStatisticsVo;
@@ -31,6 +32,9 @@ class CostProjectServiceImplTest
 
     @Mock
     private CostProjectAccessService accessService;
+
+    @Mock
+    private CostProjectFileMapper projectFileMapper;
 
     @InjectMocks
     private CostProjectServiceImpl projectService;
@@ -76,6 +80,18 @@ class CostProjectServiceImplTest
 
         assertEquals(2, projectService.deleteCostProjectByIds(new Long[] { 1L, 2L }, "admin"));
         verify(projectMapper).deleteCostProjectByIds(new Long[] { 1L, 2L }, "admin");
+    }
+
+    @Test
+    void deletionRejectsProjectWithActiveFiles()
+    {
+        when(accessService.selectAccessibleProject(any(CostProject.class))).thenReturn(new CostProject());
+        when(projectFileMapper.countByProjectId(1L)).thenReturn(1);
+
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> projectService.deleteCostProjectByIds(new Long[] { 1L }, "admin"));
+
+        assertEquals("项目存在文件，请先删除项目文件", exception.getMessage());
     }
 
     @Test
