@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.review.mapper.CostReviewTaskMapper">
+    <resultMap id="TaskResult" type="com.ruoyi.cost.review.domain.CostReviewTask">
+        <id property="id" column="id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="leftBatchId" column="left_batch_id"/>
+        <result property="rightBatchId" column="right_batch_id"/>
+        <result property="taskName" column="task_name"/>
+        <result property="leftBatchName" column="left_batch_name"/>
+        <result property="rightBatchName" column="right_batch_name"/>
+        <result property="status" column="status"/>
+        <result property="ruleVersion" column="rule_version"/>
+        <result property="configSnapshotJson" column="config_snapshot_json"/>
+        <result property="leftItemCount" column="left_item_count"/>
+        <result property="rightItemCount" column="right_item_count"/>
+        <result property="compareCount" column="compare_count"/>
+        <result property="issueCount" column="issue_count"/>
+        <result property="mediumCount" column="medium_count"/>
+        <result property="highCount" column="high_count"/>
+        <result property="criticalCount" column="critical_count"/>
+        <result property="riskAmount" column="risk_amount"/>
+        <result property="reductionAmount" column="reduction_amount"/>
+        <result property="quantityIssueCount" column="quantity_issue_count"/>
+        <result property="unitPriceIssueCount" column="unit_price_issue_count"/>
+        <result property="missingIssueCount" column="missing_issue_count"/>
+        <result property="duplicateIssueCount" column="duplicate_issue_count"/>
+        <result property="startedBy" column="started_by"/>
+        <result property="startTime" column="start_time"/>
+        <result property="finishTime" column="finish_time"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="taskColumns">
+        r.*, lb.batch_name left_batch_name, rb.batch_name right_batch_name,
+        (select count(*) from cost_review_issue i where i.review_task_id = r.id
+            and i.del_flag = '0' and i.issue_type = 'QUANTITY') quantity_issue_count,
+        (select count(*) from cost_review_issue i where i.review_task_id = r.id
+            and i.del_flag = '0' and i.issue_type = 'UNIT_PRICE') unit_price_issue_count,
+        (select count(*) from cost_review_issue i where i.review_task_id = r.id
+            and i.del_flag = '0' and i.issue_type = 'MISSING') missing_issue_count,
+        (select count(*) from cost_review_issue i where i.review_task_id = r.id
+            and i.del_flag = '0' and i.issue_type = 'DUPLICATE') duplicate_issue_count,
+        (select coalesce(sum(i.difference_value), 0) from cost_review_issue i
+            where i.review_task_id = r.id and i.del_flag = '0'
+              and i.issue_type = 'TOTAL_PRICE' and i.difference_value &gt; 0
+              and i.status in ('CONFIRMED','RECTIFIED')) reduction_amount
+    </sql>
+
+    <insert id="insertTask" parameterType="com.ruoyi.cost.review.domain.CostReviewTask"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into cost_review_task (
+            project_id, left_batch_id, right_batch_id, task_name, status, rule_version,
+            config_snapshot_json, left_item_count, right_item_count, compare_count,
+            issue_count, medium_count, high_count, critical_count, risk_amount,
+            started_by, start_time, create_by, create_time, del_flag
+        ) values (
+            #{projectId}, #{leftBatchId}, #{rightBatchId}, #{taskName}, #{status}, #{ruleVersion},
+            #{configSnapshotJson}, #{leftItemCount}, #{rightItemCount}, #{compareCount},
+            0, 0, 0, 0, 0, #{startedBy}, #{startTime}, #{createBy}, #{createTime}, '0'
+        )
+    </insert>
+
+    <update id="finishSuccess">
+        update cost_review_task
+        set status = 'SUCCESS', issue_count = #{issueCount}, medium_count = #{mediumCount},
+            high_count = #{highCount}, critical_count = #{criticalCount},
+            risk_amount = #{riskAmount}, finish_time = sysdate(), error_message = null,
+            update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0' and status = 'RUNNING'
+    </update>
+
+    <update id="finishFailed">
+        update cost_review_task
+        set status = 'FAILED', finish_time = sysdate(), error_message = #{errorMessage},
+            update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0' and status = 'RUNNING'
+    </update>
+
+    <update id="refreshStatistics">
+        update cost_review_task r
+        set r.issue_count = (select count(*) from cost_review_issue i where i.review_task_id = r.id and i.del_flag = '0'),
+            r.medium_count = (select count(*) from cost_review_issue i where i.review_task_id = r.id and i.del_flag = '0' and i.issue_level = 'MEDIUM'),
+            r.high_count = (select count(*) from cost_review_issue i where i.review_task_id = r.id and i.del_flag = '0' and i.issue_level = 'HIGH'),
+            r.critical_count = (select count(*) from cost_review_issue i where i.review_task_id = r.id and i.del_flag = '0' and i.issue_level = 'CRITICAL'),
+            r.risk_amount = (select coalesce(sum(i.risk_amount), 0) from cost_review_issue i where i.review_task_id = r.id and i.del_flag = '0'),
+            r.update_by = #{updateBy}, r.update_time = sysdate()
+        where r.id = #{id} and r.del_flag = '0'
+    </update>
+
+    <select id="selectTaskList" resultMap="TaskResult">
+        select <include refid="taskColumns"/>
+        from cost_review_task r
+        left join cost_boq_batch lb on lb.id = r.left_batch_id
+        left join cost_boq_batch rb on rb.id = r.right_batch_id
+        where r.del_flag = '0' and r.project_id = #{projectId}
+        <if test="status != null and status != ''">and r.status = #{status}</if>
+        <if test="taskName != null and taskName != ''">and r.task_name like concat('%', #{taskName}, '%')</if>
+        order by r.create_time desc, r.id desc
+    </select>
+
+    <select id="selectTaskById" resultMap="TaskResult">
+        select <include refid="taskColumns"/>
+        from cost_review_task r
+        left join cost_boq_batch lb on lb.id = r.left_batch_id
+        left join cost_boq_batch rb on rb.id = r.right_batch_id
+        where r.id = #{id} and r.del_flag = '0' limit 1
+    </select>
+
+    <update id="deleteByBoqBatchId">
+        update cost_review_task set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where del_flag = '0' and (left_batch_id = #{boqBatchId} or right_batch_id = #{boqBatchId})
+    </update>
+</mapper>

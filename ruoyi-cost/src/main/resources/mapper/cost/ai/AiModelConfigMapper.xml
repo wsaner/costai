@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.ai.model.mapper.AiModelConfigMapper">
+    <resultMap id="ModelConfigResult" type="com.ruoyi.cost.ai.model.domain.AiModelConfig">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="providerType" column="provider_type"/>
+        <result property="baseUrl" column="base_url"/>
+        <result property="apiKeyEncrypted" column="api_key_encrypted"/>
+        <result property="apiKeyHint" column="api_key_hint"/>
+        <result property="chatModel" column="chat_model"/>
+        <result property="embeddingModel" column="embedding_model"/>
+        <result property="temperature" column="temperature"/>
+        <result property="maxTokens" column="max_tokens"/>
+        <result property="timeoutSeconds" column="timeout_seconds"/>
+        <result property="enabled" column="enabled"/>
+        <result property="isDefault" column="is_default"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="modelColumns">
+        id, name, provider_type, base_url, api_key_encrypted, api_key_hint,
+        chat_model, embedding_model, temperature, max_tokens, timeout_seconds,
+        enabled, is_default, create_by, create_time, update_by, update_time, remark
+    </sql>
+
+    <select id="selectModelConfigList" resultMap="ModelConfigResult">
+        select <include refid="modelColumns"/> from ai_model_config
+        where del_flag = '0'
+        <if test="name != null and name != ''">
+            and name like concat('%', #{name}, '%')
+        </if>
+        <if test="providerType != null and providerType != ''">
+            and provider_type = #{providerType}
+        </if>
+        <if test="enabled != null and enabled != ''">
+            and enabled = #{enabled}
+        </if>
+        order by field(is_default, 'Y', 'N'), id desc
+    </select>
+
+    <select id="selectModelConfigById" resultMap="ModelConfigResult">
+        select <include refid="modelColumns"/> from ai_model_config
+        where id = #{id} and del_flag = '0' limit 1
+    </select>
+
+    <select id="selectDefaultEnabledConfig" resultMap="ModelConfigResult">
+        select <include refid="modelColumns"/> from ai_model_config
+        where enabled = '0' and is_default = 'Y' and del_flag = '0'
+        order by id asc limit 1
+    </select>
+
+    <select id="countByName" resultType="int">
+        select count(*) from ai_model_config
+        where name = #{name} and del_flag = '0'
+        <if test="excludeId != null">and id != #{excludeId}</if>
+    </select>
+
+    <insert id="insertModelConfig" parameterType="com.ruoyi.cost.ai.model.domain.AiModelConfig"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into ai_model_config
+        (name, provider_type, base_url, api_key_encrypted, api_key_hint, chat_model,
+         embedding_model, temperature, max_tokens, timeout_seconds, enabled, is_default,
+         create_by, create_time, remark, del_flag)
+        values
+        (#{name}, #{providerType}, #{baseUrl}, #{apiKeyEncrypted}, #{apiKeyHint}, #{chatModel},
+         #{embeddingModel}, #{temperature}, #{maxTokens}, #{timeoutSeconds}, #{enabled}, #{isDefault},
+         #{createBy}, sysdate(), #{remark}, '0')
+    </insert>
+
+    <update id="updateModelConfig" parameterType="com.ruoyi.cost.ai.model.domain.AiModelConfig">
+        update ai_model_config
+        set name = #{name}, provider_type = #{providerType}, base_url = #{baseUrl},
+            api_key_encrypted = #{apiKeyEncrypted}, api_key_hint = #{apiKeyHint},
+            chat_model = #{chatModel}, embedding_model = #{embeddingModel},
+            temperature = #{temperature}, max_tokens = #{maxTokens},
+            timeout_seconds = #{timeoutSeconds}, enabled = #{enabled}, is_default = #{isDefault},
+            update_by = #{updateBy}, update_time = sysdate(), remark = #{remark}
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="clearDefault">
+        update ai_model_config set is_default = 'N', update_by = #{updateBy}, update_time = sysdate()
+        where is_default = 'Y' and del_flag = '0'
+        <if test="excludeId != null">and id != #{excludeId}</if>
+    </update>
+
+    <update id="deleteModelConfig">
+        update ai_model_config set del_flag = '2', is_default = 'N',
+            update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+</mapper>

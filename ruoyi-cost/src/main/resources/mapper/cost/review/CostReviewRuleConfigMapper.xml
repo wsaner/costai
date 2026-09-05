@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.review.mapper.CostReviewRuleConfigMapper">
+    <resultMap id="ConfigResult" type="com.ruoyi.cost.review.domain.CostReviewRuleConfig">
+        <id property="id" column="id"/>
+        <result property="ruleCode" column="rule_code"/>
+        <result property="ruleName" column="rule_name"/>
+        <result property="configKey" column="config_key"/>
+        <result property="configName" column="config_name"/>
+        <result property="configValue" column="config_value"/>
+        <result property="valueType" column="value_type"/>
+        <result property="sortNum" column="sort_num"/>
+        <result property="description" column="description"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectConfigList" resultMap="ConfigResult">
+        select * from cost_review_rule_config where del_flag = '0'
+        order by rule_code asc, sort_num asc, id asc
+    </select>
+
+    <select id="selectConfigById" resultMap="ConfigResult">
+        select * from cost_review_rule_config where id = #{id} and del_flag = '0' limit 1
+    </select>
+
+    <update id="updateConfigValue">
+        update cost_review_rule_config
+        set config_value = #{configValue}, update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+</mapper>

@@ -16,6 +16,7 @@ class CostBoqMapperXmlTest
         String namespace = CostBoqBatchMapper.class.getName() + ".";
         assertTrue(configuration.hasStatement(namespace + "selectBatchList"));
         assertTrue(configuration.hasStatement(namespace + "selectBatchById"));
+        assertTrue(configuration.hasStatement(namespace + "lockBatchById"));
         assertTrue(configuration.hasStatement(namespace + "insertBatch"));
         assertTrue(configuration.hasStatement(namespace + "updateImportResult"));
         assertTrue(configuration.hasStatement(namespace + "deleteBatch"));
@@ -27,6 +28,7 @@ class CostBoqMapperXmlTest
         Configuration configuration = parse("mapper/cost/boq/CostBoqItemMapper.xml");
         String namespace = CostBoqItemMapper.class.getName() + ".";
         assertTrue(configuration.hasStatement(namespace + "selectItemList"));
+        assertTrue(configuration.hasStatement(namespace + "selectItemById"));
         assertTrue(configuration.hasStatement(namespace + "batchInsert"));
         assertTrue(configuration.hasStatement(namespace + "deleteByBatchId"));
     }

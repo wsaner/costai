@@ -17,8 +17,11 @@ import com.ruoyi.cost.boq.domain.CostBoqBatch;
 import com.ruoyi.cost.boq.mapper.CostBoqBatchMapper;
 import com.ruoyi.cost.boq.mapper.CostBoqImportErrorMapper;
 import com.ruoyi.cost.boq.mapper.CostBoqItemMapper;
+import com.ruoyi.cost.boq.match.mapper.CostBoqCompareMapper;
 import com.ruoyi.cost.project.domain.CostProject;
 import com.ruoyi.cost.project.service.ICostProjectService;
+import com.ruoyi.cost.review.mapper.CostReviewTaskMapper;
+import com.ruoyi.cost.review.mapper.CostReviewIssueMapper;
 
 @ExtendWith(MockitoExtension.class)
 class CostBoqServiceImplTest
@@ -26,6 +29,9 @@ class CostBoqServiceImplTest
     @Mock CostBoqBatchMapper batchMapper;
     @Mock CostBoqItemMapper itemMapper;
     @Mock CostBoqImportErrorMapper errorMapper;
+    @Mock CostBoqCompareMapper compareMapper;
+    @Mock CostReviewTaskMapper reviewTaskMapper;
+    @Mock CostReviewIssueMapper reviewIssueMapper;
     @Mock ICostProjectService projectService;
 
     @Test
@@ -36,11 +42,16 @@ class CostBoqServiceImplTest
         when(batchMapper.selectBatchById(9L)).thenReturn(batch);
         when(projectService.selectCostProjectById(7L)).thenReturn(new CostProject());
         when(batchMapper.deleteBatch(9L, "admin")).thenReturn(1);
-        CostBoqServiceImpl service = new CostBoqServiceImpl(batchMapper, itemMapper, errorMapper, projectService);
+        CostBoqServiceImpl service = new CostBoqServiceImpl(batchMapper, itemMapper, errorMapper,
+                compareMapper, reviewTaskMapper, reviewIssueMapper, projectService);
 
         assertEquals(1, service.deleteBatch(9L, "admin"));
 
-        InOrder order = inOrder(errorMapper, itemMapper, batchMapper);
+        InOrder order = inOrder(reviewIssueMapper, reviewTaskMapper, compareMapper,
+                errorMapper, itemMapper, batchMapper);
+        order.verify(reviewIssueMapper).deleteByBoqBatchId(9L, "admin");
+        order.verify(reviewTaskMapper).deleteByBoqBatchId(9L, "admin");
+        order.verify(compareMapper).deleteByBatchId(9L, "admin");
         order.verify(errorMapper).deleteByBatchId(9L, "admin");
         order.verify(itemMapper).deleteByBatchId(9L, "admin");
         order.verify(batchMapper).deleteBatch(9L, "admin");
@@ -59,7 +70,8 @@ class CostBoqServiceImplTest
             assertEquals(10, PageMethod.getLocalPage().getPageSize());
             return Collections.emptyList();
         });
-        CostBoqServiceImpl service = new CostBoqServiceImpl(batchMapper, itemMapper, errorMapper, projectService);
+        CostBoqServiceImpl service = new CostBoqServiceImpl(batchMapper, itemMapper, errorMapper,
+                compareMapper, reviewTaskMapper, reviewIssueMapper, projectService);
         Page<?> page = PageMethod.startPage(2, 10);
         try
         {
@@ -86,7 +98,8 @@ class CostBoqServiceImplTest
             assertNull(PageMethod.getLocalPage());
             return new CostProject();
         });
-        CostBoqServiceImpl service = new CostBoqServiceImpl(batchMapper, itemMapper, errorMapper, projectService);
+        CostBoqServiceImpl service = new CostBoqServiceImpl(batchMapper, itemMapper, errorMapper,
+                compareMapper, reviewTaskMapper, reviewIssueMapper, projectService);
         com.ruoyi.cost.boq.domain.CostBoqItem query = new com.ruoyi.cost.boq.domain.CostBoqItem();
         query.setBatchId(9L);
         Page<?> page = PageMethod.startPage(1, 20);

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.review.mapper.CostReviewIssueMapper">
+    <resultMap id="IssueResult" type="com.ruoyi.cost.review.domain.CostReviewIssue">
+        <id property="id" column="id"/>
+        <result property="reviewTaskId" column="review_task_id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="leftItemId" column="left_item_id"/>
+        <result property="rightItemId" column="right_item_id"/>
+        <result property="boqItemId" column="boq_item_id"/>
+        <result property="compareResultId" column="compare_result_id"/>
+        <result property="itemSide" column="item_side"/>
+        <result property="itemCodeSnapshot" column="item_code_snapshot"/>
+        <result property="itemNameSnapshot" column="item_name_snapshot"/>
+        <result property="issueType" column="issue_type"/>
+        <result property="issueLevel" column="issue_level"/>
+        <result property="issueTitle" column="issue_title"/>
+        <result property="issueDescription" column="issue_description"/>
+        <result property="originalValue" column="original_value"/>
+        <result property="referenceValue" column="reference_value"/>
+        <result property="differenceValue" column="difference_value"/>
+        <result property="differenceRate" column="difference_rate"/>
+        <result property="riskAmount" column="risk_amount"/>
+        <result property="ruleCode" column="rule_code"/>
+        <result property="evidenceJson" column="evidence_json"/>
+        <result property="aiAnalysis" column="ai_analysis"/>
+        <result property="aiSuggestion" column="ai_suggestion"/>
+        <result property="aiConfidence" column="ai_confidence"/>
+        <result property="aiHasIssue" column="ai_has_issue"/>
+        <result property="aiIssueType" column="ai_issue_type"/>
+        <result property="aiIssueLevel" column="ai_issue_level"/>
+        <result property="aiTitle" column="ai_title"/>
+        <result property="aiModel" column="ai_model"/>
+        <result property="aiRequestId" column="ai_request_id"/>
+        <result property="aiAnalyzedUserId" column="ai_analyzed_user_id"/>
+        <result property="aiAnalyzedBy" column="ai_analyzed_by"/>
+        <result property="aiAnalyzedTime" column="ai_analyzed_time"/>
+        <result property="status" column="status"/>
+        <result property="reviewerUserId" column="reviewer_user_id"/>
+        <result property="reviewer" column="reviewer"/>
+        <result property="reviewComment" column="review_comment"/>
+        <result property="reviewTime" column="review_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <insert id="batchInsert">
+        insert into cost_review_issue (
+            review_task_id, project_id, left_item_id, right_item_id, boq_item_id,
+            compare_result_id, item_side, item_code_snapshot, item_name_snapshot,
+            issue_type, issue_level, issue_title, issue_description, original_value,
+            reference_value, difference_value, difference_rate, risk_amount, rule_code,
+            evidence_json, status, create_by, create_time, del_flag
+        ) values
+        <foreach collection="issues" item="i" separator=",">
+            (#{i.reviewTaskId}, #{i.projectId}, #{i.leftItemId}, #{i.rightItemId}, #{i.boqItemId},
+             #{i.compareResultId}, #{i.itemSide}, #{i.itemCodeSnapshot}, #{i.itemNameSnapshot},
+             #{i.issueType}, #{i.issueLevel}, #{i.issueTitle}, #{i.issueDescription},
+             #{i.originalValue}, #{i.referenceValue}, #{i.differenceValue}, #{i.differenceRate},
+             #{i.riskAmount}, #{i.ruleCode}, #{i.evidenceJson}, #{i.status},
+             #{i.createBy}, #{i.createTime}, '0')
+        </foreach>
+    </insert>
+
+    <select id="selectIssueList" resultMap="IssueResult">
+        select i.* from cost_review_issue i
+        where i.del_flag = '0' and i.review_task_id = #{reviewTaskId}
+        <if test="issueType != null and issueType != ''">and i.issue_type = #{issueType}</if>
+        <if test="issueLevel != null and issueLevel != ''">and i.issue_level = #{issueLevel}</if>
+        <if test="status != null and status != ''">and i.status = #{status}</if>
+        <if test="keyword != null and keyword != ''">
+            and (i.item_code_snapshot like concat('%', #{keyword}, '%')
+                 or i.item_name_snapshot like concat('%', #{keyword}, '%')
+                 or i.issue_title like concat('%', #{keyword}, '%'))
+        </if>
+        order by field(i.issue_level, 'CRITICAL','HIGH','MEDIUM','LOW','INFO'), i.id asc
+    </select>
+
+    <select id="selectIssueById" resultMap="IssueResult">
+        select * from cost_review_issue where id = #{id} and del_flag = '0' limit 1
+    </select>
+
+    <update id="updateIssueHandle">
+        update cost_review_issue
+        set status = #{request.status}, issue_level = #{request.issueLevel},
+            reviewer_user_id = #{reviewerUserId}, reviewer = #{reviewer},
+            review_comment = #{request.reviewComment}, review_time = sysdate(),
+            update_by = #{reviewer}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="updateAiAnalysis">
+        update cost_review_issue
+        set ai_has_issue = #{result.hasIssueFlag}, ai_issue_type = #{result.issueType},
+            ai_issue_level = #{result.riskLevel}, ai_title = #{result.title},
+            ai_analysis = #{result.analysis}, ai_suggestion = #{result.suggestion},
+            ai_confidence = #{result.confidence}, ai_model = #{result.model},
+            ai_request_id = #{result.requestId}, ai_analyzed_user_id = #{userId},
+            ai_analyzed_by = #{username}, ai_analyzed_time = sysdate(),
+            update_by = #{username}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="deleteByBoqBatchId">
+        update cost_review_issue i
+        inner join cost_review_task r on r.id = i.review_task_id
+        set i.del_flag = '2', i.update_by = #{updateBy}, i.update_time = sysdate()
+        where i.del_flag = '0' and (r.left_batch_id = #{boqBatchId} or r.right_batch_id = #{boqBatchId})
+    </update>
+</mapper>

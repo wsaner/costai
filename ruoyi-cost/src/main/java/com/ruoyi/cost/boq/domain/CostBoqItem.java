@@ -33,6 +33,8 @@ public class CostBoqItem extends BaseEntity
     private String sourceSheet;
     private Integer sourceRow;
     @JsonIgnore
+    private String keyword;
+    @JsonIgnore
     private String delFlag;
 
     public Long getId() { return id; }
@@ -83,6 +85,8 @@ public class CostBoqItem extends BaseEntity
     public void setSourceSheet(String sourceSheet) { this.sourceSheet = sourceSheet; }
     public Integer getSourceRow() { return sourceRow; }
     public void setSourceRow(Integer sourceRow) { this.sourceRow = sourceRow; }
+    public String getKeyword() { return keyword; }
+    public void setKeyword(String keyword) { this.keyword = keyword; }
     public String getDelFlag() { return delFlag; }
     public void setDelFlag(String delFlag) { this.delFlag = delFlag; }
 }

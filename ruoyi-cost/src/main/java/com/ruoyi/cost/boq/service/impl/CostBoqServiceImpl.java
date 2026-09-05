@@ -13,8 +13,11 @@ import com.ruoyi.cost.boq.domain.CostBoqItem;
 import com.ruoyi.cost.boq.mapper.CostBoqBatchMapper;
 import com.ruoyi.cost.boq.mapper.CostBoqImportErrorMapper;
 import com.ruoyi.cost.boq.mapper.CostBoqItemMapper;
+import com.ruoyi.cost.boq.match.mapper.CostBoqCompareMapper;
 import com.ruoyi.cost.boq.service.CostBoqService;
 import com.ruoyi.cost.project.service.ICostProjectService;
+import com.ruoyi.cost.review.mapper.CostReviewTaskMapper;
+import com.ruoyi.cost.review.mapper.CostReviewIssueMapper;
 
 /** 清单批次、明细、错误行管理。 */
 @Service
@@ -23,14 +26,22 @@ public class CostBoqServiceImpl implements CostBoqService
     private final CostBoqBatchMapper batchMapper;
     private final CostBoqItemMapper itemMapper;
     private final CostBoqImportErrorMapper errorMapper;
+    private final CostBoqCompareMapper compareMapper;
+    private final CostReviewTaskMapper reviewTaskMapper;
+    private final CostReviewIssueMapper reviewIssueMapper;
     private final ICostProjectService projectService;
 
     public CostBoqServiceImpl(CostBoqBatchMapper batchMapper, CostBoqItemMapper itemMapper,
-            CostBoqImportErrorMapper errorMapper, ICostProjectService projectService)
+            CostBoqImportErrorMapper errorMapper, CostBoqCompareMapper compareMapper,
+            CostReviewTaskMapper reviewTaskMapper, CostReviewIssueMapper reviewIssueMapper,
+            ICostProjectService projectService)
     {
         this.batchMapper = batchMapper;
         this.itemMapper = itemMapper;
         this.errorMapper = errorMapper;
+        this.compareMapper = compareMapper;
+        this.reviewTaskMapper = reviewTaskMapper;
+        this.reviewIssueMapper = reviewIssueMapper;
         this.projectService = projectService;
     }
 
@@ -77,6 +88,9 @@ public class CostBoqServiceImpl implements CostBoqService
     public int deleteBatch(Long batchId, String operator)
     {
         CostBoqBatch batch = selectBatchById(batchId);
+        reviewIssueMapper.deleteByBoqBatchId(batch.getId(), operator);
+        reviewTaskMapper.deleteByBoqBatchId(batch.getId(), operator);
+        compareMapper.deleteByBatchId(batch.getId(), operator);
         errorMapper.deleteByBatchId(batch.getId(), operator);
         itemMapper.deleteByBatchId(batch.getId(), operator);
         return batchMapper.deleteBatch(batch.getId(), operator);

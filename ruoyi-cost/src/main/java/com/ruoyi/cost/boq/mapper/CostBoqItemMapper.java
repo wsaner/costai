@@ -8,6 +8,7 @@ import com.ruoyi.cost.boq.domain.CostBoqItem;
 public interface CostBoqItemMapper
 {
     List<CostBoqItem> selectItemList(CostBoqItem query);
+    CostBoqItem selectItemById(@Param("id") Long id);
     int batchInsert(@Param("items") List<CostBoqItem> items);
     int deleteByBatchId(@Param("batchId") Long batchId, @Param("updateBy") String updateBy);
 }

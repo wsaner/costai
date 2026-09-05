@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.boq.match.mapper.CostBoqCompareMapper">
+    <resultMap id="CompareResult" type="com.ruoyi.cost.boq.match.domain.CostBoqCompare">
+        <id property="id" column="id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="leftBatchId" column="left_batch_id"/>
+        <result property="rightBatchId" column="right_batch_id"/>
+        <result property="leftItemId" column="left_item_id"/>
+        <result property="rightItemId" column="right_item_id"/>
+        <result property="matchType" column="match_type"/>
+        <result property="matchScore" column="match_score"/>
+        <result property="quantityDiff" column="quantity_diff"/>
+        <result property="quantityDiffRate" column="quantity_diff_rate"/>
+        <result property="unitPriceDiff" column="unit_price_diff"/>
+        <result property="unitPriceDiffRate" column="unit_price_diff_rate"/>
+        <result property="totalPriceDiff" column="total_price_diff"/>
+        <result property="totalPriceDiffRate" column="total_price_diff_rate"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="leftItemCode" column="left_item_code"/>
+        <result property="leftItemName" column="left_item_name"/>
+        <result property="leftItemFeature" column="left_item_feature"/>
+        <result property="leftUnit" column="left_unit"/>
+        <result property="leftQuantity" column="left_quantity"/>
+        <result property="leftUnitPrice" column="left_unit_price"/>
+        <result property="leftTotalPrice" column="left_total_price"/>
+        <result property="rightItemCode" column="right_item_code"/>
+        <result property="rightItemName" column="right_item_name"/>
+        <result property="rightItemFeature" column="right_item_feature"/>
+        <result property="rightUnit" column="right_unit"/>
+        <result property="rightQuantity" column="right_quantity"/>
+        <result property="rightUnitPrice" column="right_unit_price"/>
+        <result property="rightTotalPrice" column="right_total_price"/>
+    </resultMap>
+
+    <resultMap id="SummaryResult" type="com.ruoyi.cost.boq.match.vo.BoqCompareSummaryVo">
+        <result property="totalCount" column="total_count"/>
+        <result property="matchedCount" column="matched_count"/>
+        <result property="exactCount" column="exact_count"/>
+        <result property="highSimilarityCount" column="high_similarity_count"/>
+        <result property="lowSimilarityCount" column="low_similarity_count"/>
+        <result property="onlyLeftCount" column="only_left_count"/>
+        <result property="onlyRightCount" column="only_right_count"/>
+        <result property="manualCount" column="manual_count"/>
+        <result property="averageMatchScore" column="average_match_score"/>
+    </resultMap>
+
+    <sql id="joinedColumns">
+        c.id, c.project_id, c.left_batch_id, c.right_batch_id, c.left_item_id, c.right_item_id,
+        c.match_type, c.match_score, c.quantity_diff, c.quantity_diff_rate,
+        c.unit_price_diff, c.unit_price_diff_rate, c.total_price_diff, c.total_price_diff_rate,
+        c.create_by, c.create_time, c.update_by, c.update_time,
+        li.item_code left_item_code, li.item_name left_item_name,
+        li.item_feature left_item_feature, li.unit left_unit, li.quantity left_quantity,
+        li.unit_price left_unit_price, li.total_price left_total_price,
+        ri.item_code right_item_code, ri.item_name right_item_name,
+        ri.item_feature right_item_feature, ri.unit right_unit, ri.quantity right_quantity,
+        ri.unit_price right_unit_price, ri.total_price right_total_price
+    </sql>
+
+    <select id="selectCompareList" resultMap="CompareResult">
+        select <include refid="joinedColumns"/>
+        from cost_boq_compare c
+        left join cost_boq_item li on li.id = c.left_item_id and li.del_flag = '0'
+        left join cost_boq_item ri on ri.id = c.right_item_id and ri.del_flag = '0'
+        where c.del_flag = '0'
+          and c.project_id = #{projectId}
+          and c.left_batch_id = #{leftBatchId}
+          and c.right_batch_id = #{rightBatchId}
+        <if test="matchType != null and matchType != ''">
+            and c.match_type = #{matchType}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            and (li.item_code like concat('%', #{keyword}, '%')
+                 or li.item_name like concat('%', #{keyword}, '%')
+                 or ri.item_code like concat('%', #{keyword}, '%')
+                 or ri.item_name like concat('%', #{keyword}, '%'))
+        </if>
+        order by coalesce(li.source_row, ri.source_row) asc, c.id asc
+    </select>
+
+    <select id="selectPairRows" resultMap="CompareResult">
+        select <include refid="joinedColumns"/>
+        from cost_boq_compare c
+        left join cost_boq_item li on li.id = c.left_item_id and li.del_flag = '0'
+        left join cost_boq_item ri on ri.id = c.right_item_id and ri.del_flag = '0'
+        where c.del_flag = '0' and c.project_id = #{projectId}
+          and c.left_batch_id = #{leftBatchId} and c.right_batch_id = #{rightBatchId}
+        order by c.id asc
+    </select>
+
+    <select id="selectById" resultMap="CompareResult">
+        select <include refid="joinedColumns"/>
+        from cost_boq_compare c
+        left join cost_boq_item li on li.id = c.left_item_id and li.del_flag = '0'
+        left join cost_boq_item ri on ri.id = c.right_item_id and ri.del_flag = '0'
+        where c.id = #{id} and c.del_flag = '0'
+        limit 1
+    </select>
+
+    <select id="selectSummary" resultMap="SummaryResult">
+        select count(1) total_count,
+               coalesce(sum(case when match_type in ('EXACT','HIGH_SIMILARITY','LOW_SIMILARITY','MANUAL') then 1 else 0 end), 0) matched_count,
+               coalesce(sum(case when match_type = 'EXACT' then 1 else 0 end), 0) exact_count,
+               coalesce(sum(case when match_type = 'HIGH_SIMILARITY' then 1 else 0 end), 0) high_similarity_count,
+               coalesce(sum(case when match_type = 'LOW_SIMILARITY' then 1 else 0 end), 0) low_similarity_count,
+               coalesce(sum(case when match_type = 'ONLY_LEFT' then 1 else 0 end), 0) only_left_count,
+               coalesce(sum(case when match_type = 'ONLY_RIGHT' then 1 else 0 end), 0) only_right_count,
+               coalesce(sum(case when match_type = 'MANUAL' then 1 else 0 end), 0) manual_count,
+               coalesce(avg(case when left_item_id is not null and right_item_id is not null then match_score end), 0) average_match_score
+        from cost_boq_compare
+        where del_flag = '0' and project_id = #{projectId}
+          and left_batch_id = #{leftBatchId} and right_batch_id = #{rightBatchId}
+    </select>
+
+    <select id="countPair" resultType="int">
+        select count(1) from cost_boq_compare
+        where del_flag = '0' and project_id = #{projectId}
+          and left_batch_id = #{leftBatchId} and right_batch_id = #{rightBatchId}
+    </select>
+
+    <insert id="batchInsert">
+        insert into cost_boq_compare (
+            project_id, left_batch_id, right_batch_id, left_item_id, right_item_id,
+            match_type, match_score, quantity_diff, quantity_diff_rate,
+            unit_price_diff, unit_price_diff_rate, total_price_diff, total_price_diff_rate,
+            create_by, create_time, del_flag
+        ) values
+        <foreach collection="rows" item="r" separator=",">
+            (#{r.projectId}, #{r.leftBatchId}, #{r.rightBatchId}, #{r.leftItemId}, #{r.rightItemId},
+             #{r.matchType}, #{r.matchScore}, #{r.quantityDiff}, #{r.quantityDiffRate},
+             #{r.unitPriceDiff}, #{r.unitPriceDiffRate}, #{r.totalPriceDiff}, #{r.totalPriceDiffRate},
+             #{r.createBy}, #{r.createTime}, '0')
+        </foreach>
+    </insert>
+
+    <update id="deleteNonManualByPair">
+        update cost_boq_compare set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where del_flag = '0' and project_id = #{projectId}
+          and left_batch_id = #{leftBatchId} and right_batch_id = #{rightBatchId}
+          and match_type != 'MANUAL'
+    </update>
+
+    <update id="deleteUnmatchedByPair">
+        update cost_boq_compare set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where del_flag = '0' and project_id = #{projectId}
+          and left_batch_id = #{leftBatchId} and right_batch_id = #{rightBatchId}
+          and match_type in ('ONLY_LEFT','ONLY_RIGHT')
+    </update>
+
+    <update id="deleteByItemReferences">
+        update cost_boq_compare set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where del_flag = '0' and project_id = #{projectId}
+          and left_batch_id = #{leftBatchId} and right_batch_id = #{rightBatchId}
+          and (left_item_id = #{leftItemId} or right_item_id = #{rightItemId})
+    </update>
+
+    <update id="deleteById">
+        update cost_boq_compare set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="deleteByBatchId">
+        update cost_boq_compare set del_flag = '2', update_by = #{updateBy}, update_time = sysdate()
+        where del_flag = '0' and (left_batch_id = #{batchId} or right_batch_id = #{batchId})
+    </update>
+</mapper>

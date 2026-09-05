@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.ai.log.mapper.AiRequestLogMapper">
+    <resultMap id="RequestLogResult" type="com.ruoyi.cost.ai.log.domain.AiRequestLog">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="modelConfigId" column="model_config_id"/>
+        <result property="modelConfigName" column="model_config_name"/>
+        <result property="providerType" column="provider_type"/>
+        <result property="modelName" column="model_name"/>
+        <result property="requestType" column="request_type"/>
+        <result property="businessType" column="business_type"/>
+        <result property="businessId" column="business_id"/>
+        <result property="requestId" column="request_id"/>
+        <result property="promptTokens" column="prompt_tokens"/>
+        <result property="completionTokens" column="completion_tokens"/>
+        <result property="totalTokens" column="total_tokens"/>
+        <result property="durationMs" column="duration_ms"/>
+        <result property="success" column="success"/>
+        <result property="errorCode" column="error_code"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insertRequestLog" parameterType="com.ruoyi.cost.ai.log.domain.AiRequestLog"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into ai_request_log
+        (user_id, model_config_id, provider_type, model_name, request_type,
+         business_type, business_id, request_id, prompt_tokens, completion_tokens,
+         total_tokens, duration_ms, success, error_code, error_message,
+         create_by, create_time, del_flag)
+        values
+        (#{userId}, #{modelConfigId}, #{providerType}, #{modelName}, #{requestType},
+         #{businessType}, #{businessId}, #{requestId}, #{promptTokens}, #{completionTokens},
+         #{totalTokens}, #{durationMs}, #{success}, #{errorCode}, #{errorMessage},
+         #{createBy}, sysdate(), '0')
+    </insert>
+
+    <sql id="logSelect">
+        select l.id, l.user_id, l.model_config_id, c.name model_config_name,
+               l.provider_type, l.model_name, l.request_type, l.business_type,
+               l.business_id, l.request_id, l.prompt_tokens, l.completion_tokens,
+               l.total_tokens, l.duration_ms, l.success, l.error_code, l.error_message,
+               l.create_by, l.create_time
+        from ai_request_log l
+        left join ai_model_config c on c.id = l.model_config_id
+    </sql>
+
+    <select id="selectRequestLogList" resultMap="RequestLogResult">
+        <include refid="logSelect"/>
+        where l.del_flag = '0'
+        <if test="modelConfigId != null">and l.model_config_id = #{modelConfigId}</if>
+        <if test="requestType != null and requestType != ''">and l.request_type = #{requestType}</if>
+        <if test="businessType != null and businessType != ''">and l.business_type = #{businessType}</if>
+        <if test="success != null and success != ''">and l.success = #{success}</if>
+        <if test="params.beginTime != null and params.beginTime != ''">
+            and l.create_time &gt;= #{params.beginTime}
+        </if>
+        <if test="params.endTime != null and params.endTime != ''">
+            and l.create_time &lt;= concat(#{params.endTime}, ' 23:59:59')
+        </if>
+        order by l.id desc
+    </select>
+
+    <select id="selectRequestLogById" resultMap="RequestLogResult">
+        <include refid="logSelect"/>
+        where l.id = #{id} and l.del_flag = '0' limit 1
+    </select>
+</mapper>

@@ -35,6 +35,12 @@ server:
 logging:
   level:
     com.ruoyi: debug
+    # 模型配置 Mapper 包含 API Key 密文参数，禁止 MyBatis 在 DEBUG 下输出绑定值。
+    com.ruoyi.cost.ai.model.mapper: info
+    # Prompt 正文只允许在数据库与受权接口间传递，不输出 MyBatis 绑定值。
+    com.ruoyi.cost.ai.prompt.mapper: info
+    # AI审核分析/建议可能包含项目业务资料，禁止 MyBatis DEBUG 输出绑定值。
+    com.ruoyi.cost.review.mapper.CostReviewIssueMapper: info
     org.springframework: warn
 
 # 用户配置
@@ -130,6 +136,16 @@ springdoc:
       display-name: 'CostAI造价平台'
       paths-to-match: '/cost/**'
       packages-to-scan: com.ruoyi.web.controller.cost
+    - group: 'ai'
+      display-name: 'CostAI大模型基础设施'
+      paths-to-match: '/ai/**'
+      packages-to-scan: com.ruoyi.web.controller.ai
+
+# AI 配置安全。生产环境必须通过环境变量提供 32 字节密钥的 Base64 文本。
+# 未设置时仅允许保存不需要 API Key 的本地兼容网关配置。
+ai:
+  security:
+    encryption-key: ${AI_CONFIG_ENCRYPTION_KEY:}
 
 # 防盗链配置
 referer:

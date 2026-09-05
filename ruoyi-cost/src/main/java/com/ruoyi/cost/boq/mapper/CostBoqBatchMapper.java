@@ -10,6 +10,7 @@ public interface CostBoqBatchMapper
 {
     List<CostBoqBatch> selectBatchList(CostBoqBatch query);
     CostBoqBatch selectBatchById(@Param("id") Long id);
+    Long lockBatchById(@Param("id") Long id);
     int insertBatch(CostBoqBatch batch);
     int updateImportResult(@Param("id") Long id, @Param("totalCount") int totalCount,
             @Param("successCount") int successCount, @Param("failCount") int failCount,

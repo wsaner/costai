@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.ai.prompt.mapper.AiPromptTemplateMapper">
+    <resultMap id="PromptResult" type="com.ruoyi.cost.ai.prompt.domain.AiPromptTemplate">
+        <id property="id" column="id"/>
+        <result property="promptCode" column="prompt_code"/>
+        <result property="promptName" column="prompt_name"/>
+        <result property="systemPrompt" column="system_prompt"/>
+        <result property="userTemplate" column="user_template"/>
+        <result property="version" column="version"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <select id="selectPromptList" resultMap="PromptResult">
+        select id, prompt_code, prompt_name, version, enabled,
+               create_by, create_time, update_by, update_time, remark
+        from ai_prompt_template
+        where del_flag = '0'
+        <if test="promptCode != null and promptCode != ''">
+            and prompt_code like concat('%', #{promptCode}, '%')
+        </if>
+        <if test="promptName != null and promptName != ''">
+            and prompt_name like concat('%', #{promptName}, '%')
+        </if>
+        <if test="enabled != null and enabled != ''">
+            and enabled = #{enabled}
+        </if>
+        order by prompt_code asc, version desc, id desc
+    </select>
+
+    <select id="selectPromptById" resultMap="PromptResult">
+        select * from ai_prompt_template where id = #{id} and del_flag = '0' limit 1
+    </select>
+
+    <select id="selectActivePrompt" resultMap="PromptResult">
+        select * from ai_prompt_template
+        where prompt_code = #{promptCode} and enabled = '0' and del_flag = '0'
+        order by version desc, id desc limit 1
+    </select>
+
+    <select id="countCodeVersion" resultType="int">
+        select count(*) from ai_prompt_template
+        where prompt_code = #{promptCode} and version = #{version} and del_flag = '0'
+        <if test="excludeId != null">and id != #{excludeId}</if>
+    </select>
+
+    <insert id="insertPrompt" parameterType="com.ruoyi.cost.ai.prompt.domain.AiPromptTemplate"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into ai_prompt_template
+        (prompt_code, prompt_name, system_prompt, user_template, version, enabled,
+         create_by, create_time, remark, del_flag)
+        values
+        (#{promptCode}, #{promptName}, #{systemPrompt}, #{userTemplate}, #{version}, #{enabled},
+         #{createBy}, sysdate(), #{remark}, '0')
+    </insert>
+
+    <update id="updatePrompt" parameterType="com.ruoyi.cost.ai.prompt.domain.AiPromptTemplate">
+        update ai_prompt_template
+        set prompt_code = #{promptCode}, prompt_name = #{promptName},
+            system_prompt = #{systemPrompt}, user_template = #{userTemplate},
+            version = #{version}, enabled = #{enabled}, update_by = #{updateBy},
+            update_time = sysdate(), remark = #{remark}
+        where id = #{id} and del_flag = '0'
+    </update>
+
+    <update id="disableOtherVersions">
+        update ai_prompt_template set enabled = '1', update_by = #{updateBy}, update_time = sysdate()
+        where prompt_code = #{promptCode} and enabled = '0' and del_flag = '0'
+        <if test="excludeId != null">and id != #{excludeId}</if>
+    </update>
+
+    <update id="deletePrompt">
+        update ai_prompt_template set del_flag = '2', enabled = '1',
+            update_by = #{updateBy}, update_time = sysdate()
+        where id = #{id} and del_flag = '0'
+    </update>
+</mapper>

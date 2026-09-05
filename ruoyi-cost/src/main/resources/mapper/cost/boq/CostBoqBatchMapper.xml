@@ -56,6 +56,10 @@
         limit 1
     </select>
 
+    <select id="lockBatchById" resultType="long">
+        select id from cost_boq_batch where id = #{id} and del_flag = '0' for update
+    </select>
+
     <insert id="insertBatch" parameterType="com.ruoyi.cost.boq.domain.CostBoqBatch"
             useGeneratedKeys="true" keyProperty="id">
         insert into cost_boq_batch (

@@ -49,3 +49,35 @@ export function listBoqErrors(batchId, params) {
 export function deleteBoqBatch(batchId) {
   return request({ url: `/cost/boq/batches/${batchId}`, method: 'delete' })
 }
+
+export function startBoqCompare(data) {
+  return request({ url: '/cost/boq/compares', method: 'post', data, timeout: 300000 })
+}
+
+export function rematchBoqCompare(data) {
+  return request({ url: '/cost/boq/compares/rematch', method: 'post', data, timeout: 300000 })
+}
+
+export function listBoqCompares(params) {
+  return request({ url: '/cost/boq/compares', method: 'get', params })
+}
+
+export function getBoqCompareSummary(params) {
+  return request({ url: '/cost/boq/compares/summary', method: 'get', params })
+}
+
+export function manualMatchBoq(data) {
+  return request({ url: '/cost/boq/compares/manual', method: 'put', data })
+}
+
+export function unmatchBoq(compareId) {
+  return request({ url: `/cost/boq/compares/${compareId}/unmatch`, method: 'put' })
+}
+
+export function listCompareBatchOptions(projectId) {
+  return request({ url: `/cost/boq/compares/batch-options/${projectId}`, method: 'get' })
+}
+
+export function listCompareItemOptions(params) {
+  return request({ url: '/cost/boq/compares/item-options', method: 'get', params })
+}
