@@ -28,6 +28,7 @@ import com.ruoyi.cost.file.mapper.CostProjectFileMapper;
 import com.ruoyi.cost.file.support.CostProjectFileParseStatus;
 import com.ruoyi.cost.file.support.CostProjectFilePathResolver;
 import com.ruoyi.cost.file.support.CostProjectFileValidator;
+import com.ruoyi.cost.knowledge.mapper.KnowledgeMapper;
 import com.ruoyi.cost.project.domain.CostProject;
 import com.ruoyi.cost.project.service.ICostProjectService;
 import com.ruoyi.system.service.ISysDictTypeService;
@@ -43,6 +44,8 @@ class CostProjectFileServiceImplTest
     private ISysDictTypeService dictTypeService;
     @Mock
     private CostBoqBatchMapper boqBatchMapper;
+    @Mock
+    private KnowledgeMapper knowledgeMapper;
 
     @TempDir
     Path tempDir;
@@ -56,7 +59,7 @@ class CostProjectFileServiceImplTest
         previousProfile = RuoYiConfig.getProfile();
         new RuoYiConfig().setProfile(tempDir.toString());
         fileService = new CostProjectFileServiceImpl(fileMapper, projectService, dictTypeService,
-                new CostProjectFileValidator(), new CostProjectFilePathResolver(), boqBatchMapper);
+                new CostProjectFileValidator(), new CostProjectFilePathResolver(), boqBatchMapper, knowledgeMapper);
         when(projectService.selectCostProjectById(7L)).thenReturn(new CostProject());
     }
 
@@ -87,6 +90,19 @@ class CostProjectFileServiceImplTest
                 () -> fileService.deleteProjectFile(3L, "admin"));
 
         assertTrue(exception.getMessage().contains("清单批次"));
+        verify(fileMapper, never()).deleteCostProjectFile(any(), any());
+    }
+
+    @Test
+    void deleteRejectsFileReferencedByKnowledgeDocument()
+    {
+        CostProjectFile file = new CostProjectFile();
+        file.setId(4L); file.setProjectId(7L); file.setStoragePath("private/project/7/rule.pdf");
+        when(fileMapper.selectById(4L)).thenReturn(file);
+        when(knowledgeMapper.countByProjectFileId(4L)).thenReturn(1);
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> fileService.deleteProjectFile(4L, "admin"));
+        assertTrue(exception.getMessage().contains("知识库"));
         verify(fileMapper, never()).deleteCostProjectFile(any(), any());
     }
 

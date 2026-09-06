@@ -25,6 +25,7 @@ import com.ruoyi.common.utils.file.FileUtils;
 import com.ruoyi.common.utils.uuid.IdUtils;
 import com.ruoyi.cost.file.domain.CostProjectFile;
 import com.ruoyi.cost.boq.mapper.CostBoqBatchMapper;
+import com.ruoyi.cost.knowledge.mapper.KnowledgeMapper;
 import com.ruoyi.cost.file.mapper.CostProjectFileMapper;
 import com.ruoyi.cost.file.service.ICostProjectFileService;
 import com.ruoyi.cost.file.support.CostProjectFileParseStatus;
@@ -48,10 +49,12 @@ public class CostProjectFileServiceImpl implements ICostProjectFileService
     private final CostProjectFileValidator fileValidator;
     private final CostProjectFilePathResolver pathResolver;
     private final CostBoqBatchMapper boqBatchMapper;
+    private final KnowledgeMapper knowledgeMapper;
 
     public CostProjectFileServiceImpl(CostProjectFileMapper fileMapper, ICostProjectService projectService,
             ISysDictTypeService dictTypeService, CostProjectFileValidator fileValidator,
-            CostProjectFilePathResolver pathResolver, CostBoqBatchMapper boqBatchMapper)
+            CostProjectFilePathResolver pathResolver, CostBoqBatchMapper boqBatchMapper,
+            KnowledgeMapper knowledgeMapper)
     {
         this.fileMapper = fileMapper;
         this.projectService = projectService;
@@ -59,6 +62,7 @@ public class CostProjectFileServiceImpl implements ICostProjectFileService
         this.fileValidator = fileValidator;
         this.pathResolver = pathResolver;
         this.boqBatchMapper = boqBatchMapper;
+        this.knowledgeMapper = knowledgeMapper;
     }
 
     @Override
@@ -141,6 +145,10 @@ public class CostProjectFileServiceImpl implements ICostProjectFileService
         if (boqBatchMapper.countBySourceFileId(id) > 0)
         {
             throw new ServiceException("文件已用于清单导入，请先删除关联清单批次");
+        }
+        if (knowledgeMapper.countByProjectFileId(id) > 0)
+        {
+            throw new ServiceException("文件已加入知识库，请先移除关联知识文档");
         }
         int rows = fileMapper.deleteCostProjectFile(id, operator);
         if (rows == 1)

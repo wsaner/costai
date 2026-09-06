@@ -41,6 +41,10 @@ logging:
     com.ruoyi.cost.ai.prompt.mapper: info
     # AI审核分析/建议可能包含项目业务资料，禁止 MyBatis DEBUG 输出绑定值。
     com.ruoyi.cost.review.mapper.CostReviewIssueMapper: info
+    # AI聊天消息、项目上下文和引用资料属于业务敏感信息，禁止输出SQL绑定值。
+    com.ruoyi.cost.ai.chat.mapper: info
+    # 知识分片、检索问题和文档正文属于业务敏感信息，禁止输出SQL绑定值。
+    com.ruoyi.cost.knowledge.mapper: info
     org.springframework: warn
 
 # 用户配置
@@ -146,6 +150,11 @@ springdoc:
 ai:
   security:
     encryption-key: ${AI_CONFIG_ENCRYPTION_KEY:}
+  vector:
+    qdrant:
+      base-url: ${QDRANT_BASE_URL:http://localhost:6333}
+      api-key: ${QDRANT_API_KEY:}
+      timeout-seconds: ${QDRANT_TIMEOUT_SECONDS:30}
 
 # 防盗链配置
 referer:

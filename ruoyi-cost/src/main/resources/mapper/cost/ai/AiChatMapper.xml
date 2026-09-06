@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.ai.chat.mapper.AiChatMapper">
+    <resultMap id="ConversationResult" type="com.ruoyi.cost.ai.chat.domain.AiConversation">
+        <id property="id" column="id"/><result property="userId" column="user_id"/>
+        <result property="title" column="title"/><result property="mode" column="mode"/>
+        <result property="projectId" column="project_id"/><result property="projectName" column="project_name"/>
+        <result property="messageCount" column="message_count"/><result property="lastMessageTime" column="last_message_time"/>
+        <result property="generating" column="generating"/><result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/><result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/><result property="delFlag" column="del_flag"/>
+    </resultMap>
+    <resultMap id="MessageResult" type="com.ruoyi.cost.ai.chat.domain.AiConversationMessage">
+        <id property="id" column="id"/><result property="conversationId" column="conversation_id"/>
+        <result property="userId" column="user_id"/><result property="role" column="role"/>
+        <result property="content" column="content"/><result property="status" column="status"/>
+        <result property="model" column="model"/><result property="requestId" column="request_id"/>
+        <result property="sourcesJson" column="sources_json"/><result property="toolCallsJson" column="tool_calls_json"/>
+        <result property="tokenUsageJson" column="token_usage_json"/><result property="errorMessage" column="error_message"/>
+        <result property="createBy" column="create_by"/><result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/><result property="updateTime" column="update_time"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <select id="selectConversationList" resultMap="ConversationResult">
+        select * from ai_conversation where user_id = #{userId} and del_flag = '0'
+        order by coalesce(last_message_time, create_time) desc, id desc
+    </select>
+    <select id="selectConversation" resultMap="ConversationResult">
+        select * from ai_conversation where id = #{id} and user_id = #{userId} and del_flag = '0' limit 1
+    </select>
+    <insert id="insertConversation" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_conversation
+        (user_id, title, mode, project_id, project_name, message_count, generating, create_by, create_time, del_flag)
+        values (#{userId}, #{title}, #{mode}, #{projectId}, #{projectName}, 0, '0', #{createBy}, sysdate(), '0')
+    </insert>
+    <update id="updateConversation">
+        update ai_conversation set title=#{title}, mode=#{mode}, project_id=#{projectId}, project_name=#{projectName},
+        update_by=#{updateBy}, update_time=sysdate()
+        where id=#{id} and user_id=#{userId} and del_flag='0' and generating='0'
+    </update>
+    <update id="claimGeneration">
+        update ai_conversation set generating='1', update_time=sysdate()
+        where id=#{id} and user_id=#{userId} and del_flag='0' and generating='0'
+    </update>
+    <update id="releaseGeneration">
+        update ai_conversation set generating='0', message_count=message_count+#{messageIncrement},
+        last_message_time=sysdate(), title=coalesce(#{title}, title), update_by=#{operator}, update_time=sysdate()
+        where id=#{id} and user_id=#{userId} and del_flag='0'
+    </update>
+    <update id="deleteConversation">
+        update ai_conversation set del_flag='2', update_by=#{operator}, update_time=sysdate()
+        where id=#{id} and user_id=#{userId} and del_flag='0' and generating='0'
+    </update>
+    <update id="deleteMessages">
+        update ai_message set del_flag='2', update_by=#{operator}, update_time=sysdate()
+        where conversation_id=#{conversationId} and user_id=#{userId} and del_flag='0'
+    </update>
+
+    <select id="selectMessages" resultMap="MessageResult">
+        select * from ai_message where conversation_id=#{conversationId} and user_id=#{userId} and del_flag='0'
+        order by id asc
+    </select>
+    <select id="selectRecentMessages" resultMap="MessageResult">
+        select * from (
+          select * from ai_message where conversation_id=#{conversationId} and user_id=#{userId}
+          and del_flag='0' and status='COMPLETED' order by id desc limit #{limit}
+        ) t order by id asc
+    </select>
+    <insert id="insertMessage" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_message
+        (conversation_id,user_id,role,content,status,sources_json,tool_calls_json,create_by,create_time,del_flag)
+        values (#{conversationId},#{userId},#{role},#{content},#{status},#{sourcesJson},#{toolCallsJson},#{createBy},sysdate(),'0')
+    </insert>
+    <update id="completeMessage">
+        update ai_message set content=#{content},status=#{status},model=#{model},request_id=#{requestId},
+        sources_json=#{sourcesJson},tool_calls_json=#{toolCallsJson},token_usage_json=#{tokenUsageJson},
+        error_message=#{errorMessage},update_by=#{updateBy},update_time=sysdate()
+        where id=#{id} and conversation_id=#{conversationId} and user_id=#{userId} and del_flag='0'
+    </update>
+
+    <select id="selectBoqSummary" resultType="java.util.LinkedHashMap">
+        select count(i.id) itemCount, count(distinct i.batch_id) batchCount,
+               coalesce(sum(i.total_price),0) totalAmount
+        from cost_boq_item i where i.project_id=#{projectId} and i.del_flag='0'
+    </select>
+    <select id="selectReviewSummary" resultType="java.util.LinkedHashMap">
+        select t.id latestTaskId, t.task_name taskName, t.status taskStatus,
+               t.issue_count issueCount, coalesce(t.risk_amount,0) riskAmount,
+               (select count(1) from cost_review_issue i where i.review_task_id=t.id and i.del_flag='0'
+                 and i.issue_level in ('HIGH','CRITICAL')) highRiskCount
+        from cost_review_task t where t.project_id=#{projectId} and t.del_flag='0'
+        order by t.create_time desc,t.id desc limit 1
+    </select>
+    <select id="selectReviewIssues" resultType="java.util.LinkedHashMap">
+        select i.id, i.review_task_id reviewTaskId, i.issue_type issueType, i.issue_level issueLevel,
+               i.issue_title issueTitle, i.issue_description issueDescription, i.risk_amount riskAmount,
+               i.status, i.item_code_snapshot itemCode, i.item_name_snapshot itemName
+        from cost_review_issue i where i.project_id=#{projectId} and i.del_flag='0'
+        order by field(i.issue_level,'CRITICAL','HIGH','MEDIUM','LOW','INFO'), i.risk_amount desc, i.id desc
+        limit #{limit}
+    </select>
+    <select id="searchBoq" resultType="java.util.LinkedHashMap">
+        select i.id, i.batch_id batchId, i.item_code itemCode, i.item_name itemName,
+               i.item_feature itemFeature, i.unit, i.quantity, i.unit_price unitPrice, i.total_price totalPrice
+        from cost_boq_item i where i.project_id=#{projectId} and i.del_flag='0'
+        and (i.item_code like concat('%',#{keyword},'%') or i.item_name like concat('%',#{keyword},'%')
+             or i.item_feature like concat('%',#{keyword},'%'))
+        order by i.id desc limit #{limit}
+    </select>
+</mapper>

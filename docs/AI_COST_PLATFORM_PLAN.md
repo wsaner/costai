@@ -1,7 +1,7 @@
 # CostAI 平台架构与落地规划
 
 > 基线日期：2026-09-01  
-> 当前进度：阶段 0 扫描完成；阶段 01 造价项目管理已实现并验证。  
+> 当前进度：阶段 0 扫描完成；阶段 01 至阶段 10 均已实现并验证，当前已具备项目/文件/BOQ导入匹配、规则与AI审核、统一LLM基础设施，以及带项目有限上下文的SSE造价聊天闭环。
 > 维护规则：后续每次开发前先阅读本文件及同目录的数据库、API、任务文档，并检查 Git 状态、最近提交和未完成任务。
 
 ## 一、项目整体结构
@@ -27,9 +27,9 @@ cost-ai/
 
 ### 当前仓库状态
 
-- `F:\codex\cost-ai` 当前没有 `.git` 目录，`git status` 和 `git log` 均返回“not a git repository”。因此阶段 0 无法建立 Git diff/最近提交基线。
-- 建议在开始业务代码前确认此目录是否遗漏 Git 元数据；若确为新工作目录，应先初始化仓库并提交“阶段0基线”，以便后续安全审查变更。
-- 当前代码库没有 `src/test` 测试文件，MVP 必须补齐核心金额、匹配、解析和审核规则测试。
+- `F:\codex\cost-ai` 当前 Git 元数据已可用。阶段 07 开始时最近提交仍为 `f29402f 截止到4阶段`；阶段 05/06 尚未提交的代码与文档修改已保留并继续增量维护。
+- 后续每阶段继续按统一规则检查状态、diff、最近提交和未完成任务，不覆盖用户未提交改动。
+- `ruoyi-cost` 与 `ruoyi-admin` 已建立 JUnit 5 测试；截至阶段 07 两模块共有 86 项测试，新增覆盖问题状态机、人工处理、统计刷新、Mapper 和权限契约。
 
 ## 二、后端技术栈
 
@@ -44,7 +44,7 @@ cost-ai/
 | 数据库 | MySQL + Druid 1.2.28 | 金额使用 `decimal` / Java `BigDecimal` |
 | 缓存 | Spring Data Redis + Lettuce | 复用 `RedisCache`，只缓存配置/热点数据 |
 | 安全 | Spring Security + JWT + Redis 会话 | 所有新接口接入 `@PreAuthorize` 和现有 Token |
-| API 文档 | springdoc-openapi 2.9.0 | 复用 OpenAPI；需扩展扫描包，当前仅扫描 tool Controller |
+| API 文档 | springdoc-openapi 2.9.0 | 复用 OpenAPI；已增加独立 `cost` 分组扫描 `/cost/**` Controller |
 | Excel | Apache POI 5.5.1、自研 `ExcelUtil` | 常规导入导出复用；10 万行 BOQ 导入另加流式读取能力 |
 | 定时/异步 | Quartz + Spring `ThreadPoolTaskExecutor` | Quartz 适合计划任务；AI 长任务另建持久化任务执行器 |
 | 异常 | `GlobalExceptionHandler` + `ServiceException` | 新业务异常统一转换为友好消息，不返回堆栈 |
@@ -136,9 +136,10 @@ cost-ai/
 ### 能复用与不能直接复用的边界
 
 - 复用：路径规范、文件名生成、基础扩展名校验、资源映射、Bearer Token 上传方式。
-- 不能直接把 `/common/upload` 当项目文件中心：它不记录项目/分类/上传人/哈希/解析状态，不抽象存储提供者，也没有项目数据权限。
-- 第一阶段新增 `FileStorageService` 抽象和 `LocalFileStorageService` 适配器，内部复用现有文件工具；项目文件通过专用 `/cost/projects/{id}/files` 接口保存元数据。
-- 后续 MinIO/OSS 通过新适配器接入，业务表只保存 `storage_provider/bucket/object_key`，不保存大文件二进制。
+- 不能直接把 `/common/upload` 当项目文件中心：它不记录项目/分类/上传人/哈希/解析状态，也没有项目数据权限。
+- 阶段 02 已通过专用 `/cost/project/{id}/files` 接口补齐业务元数据与项目访问校验，底层直接复用现有 `profile`、`FileUploadUtils` 和 `FileUtils`。由于仓库只有这一套本地存储实现，本阶段遵循“不创建第二套文件存储系统”的要求，没有引入空泛的 `FileStorageService`。
+- 项目文件使用 `/profile/private/project/**` 私有目录，安全配置禁止匿名静态读取，只能从鉴权下载接口获得；`storage_path` 不返回前端。
+- 后续只有在项目真正接入 MinIO/OSS 时，才从当前清晰的业务调用边界抽取适配接口并迁移对象键，不预先虚构未使用的 provider/bucket 字段。
 - ZIP 只保存与受控解压；必须防 Zip Slip、压缩炸弹和嵌套深度攻击。解析任务不能信任文件内的指令文本。
 - CSV 需在 CostAI 专用白名单中增加，并同时校验扩展名、MIME、文件签名/可解析性；不要盲目扩大全局上传白名单。
 
@@ -154,8 +155,9 @@ cost-ai/
 ### CostAI 方案
 
 - 普通字典、项目列表和审核问题导出继续复用 `ExcelUtil`。
-- BOQ 大文件导入新增“流式读取 + 500~1000 条批量入库”组件。优先通过技术验证选择 EasyExcel；若其对当前 POI 5.5.1 存在依赖冲突，则改用 POI SAX/Event API，不为了方便全局降级 POI。
-- 导入分两段：预览/字段映射（只读取表头和少量样本）→ 用户确认 → 后台流式正式导入。
+- 阶段 03 未引入 EasyExcel 或升级依赖，直接复用现有 POI 5.5.1：XLSX 用 SAX、XLS 用 HSSF Event、CSV 用流式字符解析。每个 Sheet 只保留前 100 个物理行，接口最多返回 50 条有效预览，5000 行 XLSX 测试验证未整本加载。
+- 导入分两段：预览/字段映射（阶段 03，只读少量样本）→ 用户确认 → 全量流式正式导入（阶段 04，已完成）。正式导入复用同一项目文件，XLSX/XLS/CSV 均按行读取，每 500 条使用独立短事务写入，不在文件网络/磁盘读取期间保持数据库长事务。
+- 阶段 04 保留 Excel 原始 `total_price`，另存 `calculated_total_price = quantity × unit_price`（6 位小数、`HALF_UP`）供后续审核，不擅自修正原文件金额；失败行进入独立错误表并保留源 Sheet、源行、字段、原值和原因。
 - 字段映射先用确定性别名字典和归一化匹配，再在低置信度字段上调用 LLM；用户确认结果固化在导入批次中。
 - 解析、校验、批量保存不得处于一个超长事务；以批次状态和错误明细保证可追踪与可重试。
 
@@ -188,7 +190,7 @@ CostAI 可缓存：
 | 统一返回与分页 | `AjaxResult`、`TableDataInfo`、`BaseController` | 普通 REST API 保持若依格式 |
 | 异常处理 | `ServiceException`、全局异常处理器 | 新增细分业务异常并转换友好消息 |
 | Redis | `RedisCache` | 配置与热点元数据缓存 |
-| 文件基础工具 | `FileUploadUtils`、`FileUtils` | 由新存储适配层封装后使用 |
+| 文件基础工具 | `FileUploadUtils`、`FileUtils` | 阶段 02 直接复用并限定私有项目目录；未重复建设存储层 |
 | Excel 常规导入导出 | `ExcelUtil`、`ExcelImportDialog` | 非大数据场景复用 |
 | 图表 | ECharts | 工作台与指标图表 |
 | UI 组件 | Element Plus、Pagination、RightToolbar、Upload、Drawer/Tabs | 管理页复用，AI 页组合增强 |
@@ -197,9 +199,9 @@ CostAI 可缓存：
 ### 明确需要新增的能力
 
 - CostAI 业务模块、业务表和菜单数据。
-- 项目文件元数据与存储抽象。
-- BOQ 流式读取、字段映射、批量入库和导入批次。
-- 两份清单匹配、规则引擎、审核批次和问题工作流。
+- 项目文件元数据、私有路径和项目权限（阶段 02 已完成）。
+- BOQ 流式预览、确定性字段映射、导入批次、500 条分块入库、错误行和清单分页管理（阶段 03/04 已完成）。
+- 两份清单非 AI 匹配、人工调整和对比页已完成；纯 Java 审核规则、数据库阈值、审核批次/问题和项目审核结果页也已完成。下一步按独立阶段补充问题处理工作流，AI enrichment 必须等待统一 AI 基础层。
 - AI Provider 抽象、密钥加密、Prompt 版本、结构化输出、日志和 Token 统计。
 - AI 长任务调度与进度事件。
 - SSE 客户端/服务端封装、Markdown 安全渲染。
@@ -218,7 +220,7 @@ ruoyi-cost/
 ├─ pom.xml
 ├─ src/main/java/com/ruoyi/cost/
 │  ├─ project/       domain, dto, vo, mapper, service
-│  ├─ file/          项目文件元数据、FileStorageService、解析器
+│  ├─ file/          项目文件元数据、现有存储复用、安全校验、解析状态
 │  ├─ boq/           导入批次、字段映射、清单、匹配
 │  ├─ review/        审核批次、规则引擎、问题工作流
 │  ├─ ai/
@@ -274,24 +276,25 @@ ruoyi-ui/src/
 
 ## 十一、第一阶段数据库设计
 
-第一阶段建议 21 张业务表，按依赖关系分批建设：
+按阶段 07 已落地的当前对比、规则审核和问题处理方案，第一阶段规划 21 张业务表，按依赖关系分批建设：
 
 ```text
 项目主线
 cost_project
   ├─ cost_project_file
-  ├─ cost_boq_import_batch ─┬─ cost_boq_import_error
+  ├─ cost_boq_batch ─────────┬─ cost_boq_import_error
   │                         └─ cost_boq_item
-  ├─ cost_boq_compare_batch ── cost_boq_compare_result
-  ├─ cost_review_batch ── cost_review_issue
+  ├─ cost_boq_compare（阶段 05 当前匹配结果）
+  ├─ cost_review_rule_config（阶段 06 数据库化规则阈值）
+  ├─ cost_review_task ── cost_review_issue（阶段 06/07 规则结果与人工处理）
   └─ cost_report
 
 AI 主线
-ai_provider
-ai_prompt_template ── ai_prompt_version
-ai_chat_session ── ai_chat_message ── ai_message_source
+ai_model_config（阶段 08 已实现）
+ai_prompt_template（每行一个版本，阶段 08 已实现）
+ai_conversation ── ai_message（来源与工具摘要使用JSON元数据）
 ai_task
-ai_request_log
+ai_request_log（阶段 08 已实现）
 
 知识主线
 knowledge_base ── knowledge_document ── knowledge_chunk
@@ -302,7 +305,7 @@ knowledge_base ── knowledge_document ── knowledge_chunk
 - 所有可变业务表使用 `bigint auto_increment` 主键、`create_by/create_time/update_by/update_time/remark/del_flag`。
 - 日志和消息正文即使不做常规更新，也保留统一审计字段以符合现有规范。
 - `cost_project.owner_dept_id` 和 `project_manager_id` 是项目数据权限必需字段。
-- 每次 BOQ 导入、对比、审核、报告生成都有独立批次/版本，不覆盖历史结果。
+- 每次 BOQ 导入、审核和报告生成保留独立批次/版本；阶段 05 对比表维护现行结果，审核任务保存 `JAVA_RULES_V1` 和完整配置快照，后续修改阈值不篡改历史证据。
 - 清单原值和对比结果用结构化 decimal 字段，不依赖 JSON 计算。
 - AI 输出可以存 JSON，但任何金额统计先由 Java 计算并以快照输入模型。
 - `knowledge_chunk` 保存文本和向量库引用；向量本体进入 Qdrant，不写 MySQL blob。
@@ -324,33 +327,40 @@ knowledge_base ── knowledge_document ── knowledge_chunk
 ### P1：项目与文件
 
 1. 项目 CRUD、数据权限、字典、菜单、前端列表与详情 Tabs。（阶段 01 已完成）
-2. `FileStorageService` + 本地适配器，项目文件上传/下载/删除/解析状态。
-3. 文件安全校验和异步解析任务骨架。
+2. 项目文件上传/列表/详情/分类/下载/删除/解析状态，直接复用现有本地存储。（阶段 02 已完成）
+3. 文件安全校验已完成；异步解析任务在任务中心阶段接入，本阶段只保留真实状态和重新解析按钮占位。
 
 ### P2：BOQ 导入与管理
 
-1. 导入批次、表头采样和字段别名规则。
-2. AI 低置信度字段映射和用户确认页。
-3. 流式解析、批量入库、错误明细、进度与清单管理页。
-4. BigDecimal 与 Excel 解析测试、10 万行性能/内存验证。
+1. 表头采样、Sheet 识别、字段别名规则、有限预览和用户确认三步页。（阶段 03 已完成）
+2. 导入批次、用户确认映射持久化和正式全量流式解析。（阶段 04 已完成）
+3. 每 500 条批量入库、错误明细、批次/清单分页管理页。（阶段 04 已完成）
+4. AI 低置信度字段映射仅作为后续增强，不作为阶段 03/04 的强依赖。
+5. BigDecimal 原值/计算值、500 条分块与 10 万行 CSV 流式读取验证。（阶段 04 已完成）
 
 ### P3：两表对比与审核
 
-1. 对比批次与编码/名称/单位/特征多阶段匹配。
-2. Java 规则：工程量、单价、合价、负数/零值、缺单位、重复、漏项/新增。
-3. `CostReviewAgent` 对候选异常做语义判断、解释和建议。
-4. 审核问题确认/忽略/整改工作流和审核页面。
+1. 编码、标准化名称/单位、名称/特征相似度多阶段一对一匹配及人工调整。（阶段 05 已完成）
+2. 当前对比结果表、BigDecimal 左右差异、项目详情对比页和批次删除联动。（阶段 05 已完成）
+3. Java 规则：数量/单价负数、零单价、合价计算、重复、工程量/单价/合价差异、仅左/仅右。（阶段 06 已完成）
+4. 数据库化启停/阈值/容差、规则版本与配置快照、审核批次/问题持久化和项目审核结果页。（阶段 06 已完成）
+5. 审核任务、问题详情、确认/忽略/整改状态机、人工意见和统计回算。（阶段 07 已完成）
+6. 补充单位缺失、编码格式等确定性规则。（后续规则扩展）
+7. `CostReviewAgent` 对候选异常做单问题语义判断、解释和建议；只发送左右各一条清单，结果必须人工确认。（阶段 09 已完成）
 
 ### P4：AI 基础层与聊天
 
-1. Provider 管理、密钥加密、路由与 OpenAI Compatible Adapter。
-2. Prompt 模板/版本/启停/缓存。
-3. AI 请求日志、Token/时延/错误统计。
-4. 会话、结构化消息、来源、SSE 流与安全 Markdown 页面。
+1. 模型配置管理、AES-256-GCM 密钥加密、默认路由与 OpenAI Compatible Adapter。（阶段 08 已完成）
+2. Prompt 模板同表版本管理与启停；发布工作流和缓存后续增强。（阶段 08 基础能力已完成）
+3. AI 请求日志、Token/时延/错误审计。（阶段 08 已完成）
+4. 通用 `AiAgent<C,R>` 契约、严格 JSON Schema 输出、Prompt Injection 数据边界和短事务建议落库。（阶段 09 已由 CostReviewAgent 首次落地）
+5. 当前用户隔离的会话/消息、项目有限上下文、受控只读工具、SSE流与安全Markdown页面。（阶段 10 已完成）
 
 ### P5：知识库与 RAG
 
-1. 知识库/文档管理、PDF/Word/TXT 解析。
+1. 知识库/文档管理、PDF/DOCX/TXT解析、扫描PDF `OCR_REQUIRED` 已完成（阶段11）。
+2. 标题/段落/页码语义分片、Qdrant适配、Embedding索引与带来源RAG已完成（阶段11）。
+3. 复用项目文件与数据权限、知识中心管理/问答页面已完成；Excel知识解析、OCR、rerank及专用`KnowledgeAgent`按后续独立阶段评测后引入。
 2. 切片、Token 上限、Embedding、Qdrant 适配。
 3. TopK/阈值/上下文预算、引用来源和 Prompt Injection 防护。
 4. 知识问答和项目问答工具编排。

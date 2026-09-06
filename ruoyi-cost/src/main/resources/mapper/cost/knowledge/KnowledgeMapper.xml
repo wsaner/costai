@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.cost.knowledge.mapper.KnowledgeMapper">
+    <resultMap id="BaseResult" type="com.ruoyi.cost.knowledge.domain.KnowledgeBase">
+        <id property="id" column="id"/><result property="name" column="name"/>
+        <result property="description" column="description"/><result property="embeddingModel" column="embedding_model"/>
+        <result property="vectorStore" column="vector_store"/><result property="vectorCollection" column="vector_collection"/>
+        <result property="status" column="status"/><result property="documentCount" column="document_count"/>
+        <result property="chunkCount" column="chunk_count"/><result property="topK" column="top_k"/>
+        <result property="similarityThreshold" column="similarity_threshold"/>
+        <result property="maxContextChars" column="max_context_chars"/><result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/><result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/><result property="delFlag" column="del_flag"/>
+    </resultMap>
+    <resultMap id="DocumentResult" type="com.ruoyi.cost.knowledge.domain.KnowledgeDocument">
+        <id property="id" column="id"/><result property="knowledgeBaseId" column="knowledge_base_id"/>
+        <result property="projectFileId" column="project_file_id"/><result property="documentName" column="document_name"/>
+        <result property="documentType" column="document_type"/><result property="parseStatus" column="parse_status"/>
+        <result property="chunkCount" column="chunk_count"/><result property="charCount" column="char_count"/>
+        <result property="contentHash" column="content_hash"/><result property="embeddingModel" column="embedding_model"/>
+        <result property="vectorCollection" column="vector_collection"/><result property="errorMessage" column="error_message"/>
+        <result property="indexedTime" column="indexed_time"/><result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/><result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/><result property="delFlag" column="del_flag"/>
+    </resultMap>
+    <resultMap id="ChunkResult" type="com.ruoyi.cost.knowledge.domain.KnowledgeChunk">
+        <id property="id" column="id"/><result property="knowledgeBaseId" column="knowledge_base_id"/>
+        <result property="documentId" column="document_id"/><result property="content" column="content"/>
+        <result property="pageNumber" column="page_number"/><result property="sectionTitle" column="section_title"/>
+        <result property="chunkIndex" column="chunk_index"/><result property="charCount" column="char_count"/>
+        <result property="contentHash" column="content_hash"/><result property="metadataJson" column="metadata_json"/>
+        <result property="vectorStore" column="vector_store"/><result property="vectorCollection" column="vector_collection"/>
+        <result property="vectorId" column="vector_id"/><result property="indexStatus" column="index_status"/>
+        <result property="documentName" column="document_name"/><result property="createTime" column="create_time"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <sql id="BaseColumns">id,name,description,embedding_model,vector_store,vector_collection,status,document_count,chunk_count,top_k,similarity_threshold,max_context_chars,create_by,create_time,update_by,update_time,del_flag</sql>
+    <select id="selectBaseList" resultMap="BaseResult">select <include refid="BaseColumns"/> from knowledge_base where del_flag='0'<if test="name != null and name != ''"> and name like concat('%',#{name},'%')</if><if test="status != null and status != ''"> and status=#{status}</if> order by id desc</select>
+    <select id="selectBaseById" resultMap="BaseResult">select <include refid="BaseColumns"/> from knowledge_base where id=#{id} and del_flag='0'</select>
+    <select id="countBaseName" resultType="int">select count(*) from knowledge_base where name=#{name} and del_flag='0'<if test="excludeId != null"> and id != #{excludeId}</if></select>
+    <insert id="insertBase" useGeneratedKeys="true" keyProperty="id">insert into knowledge_base(name,description,vector_store,vector_collection,status,document_count,chunk_count,top_k,similarity_threshold,max_context_chars,create_by,create_time,del_flag) values(#{name},#{description},'QDRANT','PENDING',#{status},0,0,#{topK},#{similarityThreshold},#{maxContextChars},#{createBy},sysdate(),'0')</insert>
+    <update id="updateBase">update knowledge_base set name=#{name},description=#{description},status=#{status},top_k=#{topK},similarity_threshold=#{similarityThreshold},max_context_chars=#{maxContextChars},update_by=#{updateBy},update_time=sysdate() where id=#{id} and del_flag='0'</update>
+    <update id="updateBaseCollection">update knowledge_base set vector_collection=#{collection},update_by=#{operator},update_time=sysdate() where id=#{id} and del_flag='0'</update>
+    <update id="deleteBase">update knowledge_base set del_flag='2',status='DISABLED',update_by=#{operator},update_time=sysdate() where id=#{id} and del_flag='0'</update>
+    <update id="refreshBaseCounts">update knowledge_base b set document_count=(select count(*) from knowledge_document d where d.knowledge_base_id=b.id and d.del_flag='0'),chunk_count=(select count(*) from knowledge_chunk c join knowledge_document d on d.id=c.document_id and d.del_flag='0' and d.parse_status='SUCCESS' where c.knowledge_base_id=b.id and c.del_flag='0' and c.index_status='SUCCESS'),update_time=sysdate() where b.id=#{id} and b.del_flag='0'</update>
+    <update id="updateBaseEmbeddingModel">update knowledge_base set embedding_model=#{model},update_by=#{operator},update_time=sysdate() where id=#{id} and del_flag='0'</update>
+
+    <select id="selectDocumentList" resultMap="DocumentResult">select * from knowledge_document where del_flag='0'<if test="knowledgeBaseId != null"> and knowledge_base_id=#{knowledgeBaseId}</if><if test="parseStatus != null and parseStatus != ''"> and parse_status=#{parseStatus}</if> order by id desc</select>
+    <select id="selectDocumentById" resultMap="DocumentResult">select * from knowledge_document where id=#{id} and del_flag='0'</select>
+    <select id="countDocumentFile" resultType="int">select count(*) from knowledge_document where knowledge_base_id=#{baseId} and project_file_id=#{projectFileId} and del_flag='0'<if test="excludeId != null"> and id != #{excludeId}</if></select>
+    <select id="countByProjectFileId" resultType="int">select count(*) from knowledge_document where project_file_id=#{projectFileId} and del_flag='0'</select>
+    <insert id="insertDocument" useGeneratedKeys="true" keyProperty="id">insert into knowledge_document(knowledge_base_id,project_file_id,document_name,document_type,parse_status,chunk_count,char_count,content_hash,vector_collection,create_by,create_time,del_flag) values(#{knowledgeBaseId},#{projectFileId},#{documentName},#{documentType},#{parseStatus},0,0,#{contentHash},#{vectorCollection},#{createBy},sysdate(),'0')</insert>
+    <update id="claimDocument">update knowledge_document set parse_status='PARSING',error_message=null,update_by=#{operator},update_time=sysdate() where id=#{id} and del_flag='0' and parse_status in ('WAITING','FAILED','OCR_REQUIRED')</update>
+    <update id="updateDocumentResult">update knowledge_document set parse_status=#{parseStatus},chunk_count=#{chunkCount},char_count=#{charCount},embedding_model=#{embeddingModel},vector_collection=#{vectorCollection},error_message=#{errorMessage},indexed_time=#{indexedTime},update_by=#{updateBy},update_time=sysdate() where id=#{id} and del_flag='0'</update>
+    <update id="resetDocument">update knowledge_document set parse_status='WAITING',error_message=null,update_by=#{operator},update_time=sysdate() where id=#{id} and del_flag='0' and parse_status not in ('WAITING','PARSING')</update>
+    <update id="failStaleDocuments">update knowledge_document set parse_status='FAILED',error_message='处理进程中断或超时，请重新索引',update_by='system',update_time=sysdate() where knowledge_base_id=#{baseId} and del_flag='0' and parse_status in ('WAITING','PARSING') and coalesce(update_time,create_time) &lt; date_sub(sysdate(),interval 60 minute)</update>
+    <update id="deleteDocument">update knowledge_document set del_flag='2',update_by=#{operator},update_time=sysdate() where id=#{id} and del_flag='0'</update>
+    <update id="deleteDocumentsByBase">update knowledge_document set del_flag='2',update_by=#{operator},update_time=sysdate() where knowledge_base_id=#{baseId} and del_flag='0'</update>
+
+    <select id="selectChunkList" resultMap="ChunkResult">select c.*,d.document_name from knowledge_chunk c join knowledge_document d on d.id=c.document_id and d.del_flag='0' where c.del_flag='0'<if test="knowledgeBaseId != null"> and c.knowledge_base_id=#{knowledgeBaseId}</if><if test="documentId != null"> and c.document_id=#{documentId}</if> order by c.document_id,c.chunk_index</select>
+    <select id="selectChunksByDocument" resultMap="ChunkResult">select c.*,d.document_name from knowledge_chunk c join knowledge_document d on d.id=c.document_id and d.del_flag='0' where c.document_id=#{documentId} and c.del_flag='0' order by c.chunk_index</select>
+    <select id="selectChunksByIds" resultMap="ChunkResult">select c.*,d.document_name from knowledge_chunk c join knowledge_document d on d.id=c.document_id and d.del_flag='0' and d.parse_status='SUCCESS' where c.knowledge_base_id=#{baseId} and c.index_status='SUCCESS' and c.del_flag='0' and c.id in <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach></select>
+    <insert id="insertChunks">insert into knowledge_chunk(knowledge_base_id,document_id,content,page_number,section_title,chunk_index,char_count,content_hash,metadata_json,vector_store,vector_collection,index_status,create_by,create_time,del_flag) values <foreach collection="items" item="item" separator=",">(#{item.knowledgeBaseId},#{item.documentId},#{item.content},#{item.pageNumber},#{item.sectionTitle},#{item.chunkIndex},#{item.charCount},#{item.contentHash},#{item.metadataJson},#{item.vectorStore},#{item.vectorCollection},'WAITING',#{item.createBy},sysdate(),'0')</foreach></insert>
+    <update id="markChunksSuccess">update knowledge_chunk set vector_id=cast(id as char),index_status='SUCCESS',update_by=#{operator},update_time=sysdate() where document_id=#{documentId} and del_flag='0'</update>
+    <update id="markChunksFailed">update knowledge_chunk set index_status='FAILED',update_by=#{operator},update_time=sysdate() where document_id=#{documentId} and del_flag='0'</update>
+    <update id="deleteChunksByDocument">update knowledge_chunk set del_flag='2',update_by=#{operator},update_time=sysdate() where document_id=#{documentId} and del_flag='0'</update>
+    <update id="deleteChunksByBase">update knowledge_chunk set del_flag='2',update_by=#{operator},update_time=sysdate() where knowledge_base_id=#{baseId} and del_flag='0'</update>
+</mapper>
